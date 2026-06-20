@@ -1,50 +1,23 @@
-using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CanvasHandler : MonoBehaviour, IPointerClickHandler
+public class CanvasHandler : MonoBehaviour
 {
-    public RawImage image;
-    public TextMeshProUGUI text;
+    public Button startButton;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-  
+        startButton.onClick.AddListener(OnButtonClicked);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    private void OnButtonClicked()
     {
-        if (image.color == Color.white)
-        {
-            MakeRed();
-        }
-        else if (image.color == Color.red)
-        {
-            MakeWhite();
-        }
-    }
-
-    private void MakeRed()
-    {
-        image.color = Color.red;
-        text.text = "Red Game Icon";
-        text.color = Color.red;
-        print("Red Game Icon");
-    }
-
-    private void MakeWhite()
-    {
-        image.color = Color.white;
-        text.text = "Game Icon";
-        text.color = Color.white;
-        print("Game Icon");
+        SceneManager.LoadScene("SampleScene");
     }
 }

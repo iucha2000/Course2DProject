@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -8,24 +9,27 @@ public class Player : MonoBehaviour
     public Animator animator;
     public float moveSpeed = 5f;
     public float jumpForce = 5f;
+    public float hurtDuration = 0.5f;
+    public float knockbackForce = 5f;
 
     bool isGrounded;
+    bool isHurt;
 
     void Start()
     {
-        
+
     }
 
-
-
-    //MOVEMENT AND JUMPING
     private void Update()
     {
-        Move();
-
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (!isHurt)
         {
-            Jump();
+            Move();
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Jump();
+            }
         }
 
         isGrounded = CheckGround();
@@ -66,17 +70,6 @@ public class Player : MonoBehaviour
         return hit.collider != null;
     }
 
-
-
-    //COLLISIONS AND TRIGGERS
-    private void OnCollisionEnter2D(Collision2D other)
-    {
-        if (other.collider.CompareTag("Obstacle"))
-        {
-            print("Collided with an obstacle!");
-        }
-    }
-
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Item"))
@@ -86,58 +79,22 @@ public class Player : MonoBehaviour
         }
     }
 
+    private void OnCollisionEnter2D(Collision2D other)
+    {
+        if (other.collider.CompareTag("Obstacle") && !isHurt)
+        {
+            Vector2 knockbackDirection = other.GetContact(0).normal;
+            StartCoroutine(HurtRoutine(knockbackDirection));
+        }
+    }
 
-
-    //MOUSE HOVER
-    //private void OnMouseEnter()
-    //{
-    //    spriteRenderer.color = Color.red;
-    //}
-    //
-    //private void OnMouseExit()
-    //{
-    //    spriteRenderer.color = Color.white;
-    //}
-
-
-
-    //MOUSE CLICKS
-    //void Update()
-    //{
-    //    if (Input.GetMouseButtonDown(0))
-    //    {
-    //        Debug.Log("Left click");
-    //    }
-    //    if (Input.GetMouseButtonDown(2))
-    //    {
-    //        Debug.Log("Scroll click");
-    //    }
-    //    if (Input.GetMouseButtonDown(1))
-    //    {
-    //        Debug.Log("Right click");
-    //    }
-    //}
-
-
-
-    //KEY PRESSES
-    //void Update()
-    //{
-    //    if (Input.GetKeyDown(KeyCode.W))
-    //    {
-    //        Debug.Log("W key pressed");
-    //    }
-    //    if (Input.GetKeyDown(KeyCode.A))
-    //    {
-    //        Debug.Log("A key pressed");
-    //    }
-    //    if (Input.GetKeyDown(KeyCode.S))
-    //    {
-    //        Debug.Log("S key pressed");
-    //    }
-    //    if (Input.GetKeyDown(KeyCode.D))
-    //    {
-    //        Debug.Log("D key pressed");
-    //    }
-
+    private IEnumerator HurtRoutine(Vector2 knockbackDirection)
+    {
+        isHurt = true;
+        animator.SetFloat("Run", 0f);
+        animator.SetTrigger("IsHurt");
+        rigidbody2D.AddForce(knockbackDirection * knockbackForce, ForceMode2D.Impulse);
+        yield return new WaitForSeconds(hurtDuration);
+        isHurt = false;
+    }
 }
