@@ -15,6 +15,8 @@ public class Player : MonoBehaviour
     bool isGrounded;
     bool isHurt;
 
+    public GameCanvasHandler gameCanvasHandler;
+
     void Start()
     {
 
@@ -72,10 +74,12 @@ public class Player : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Item"))
+        if (other.CompareTag("Item") && other.gameObject.activeSelf)
         {
+            Item item = other.GetComponent<Item>();
             other.gameObject.SetActive(false);
-            print("Item collected!");
+
+            gameCanvasHandler.DisplayItemInfo(item.itemName, item.itemSprite);
         }
     }
 

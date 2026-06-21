@@ -18,6 +18,6 @@ public class CanvasHandler : MonoBehaviour
 
     private void OnButtonClicked()
     {
-        SceneManager.LoadScene("SampleScene");
+        SceneManager.LoadScene("GameScene");
     }
 }
