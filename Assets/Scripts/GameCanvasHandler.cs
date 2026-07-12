@@ -7,6 +7,7 @@ public class GameCanvasHandler : MonoBehaviour
 {
     public Image itemImage;
     public TextMeshProUGUI itemNameText;
+    public TextMeshProUGUI collectedCountText;
 
     public float displayDuration = 2f;
 
@@ -16,6 +17,7 @@ public class GameCanvasHandler : MonoBehaviour
     {
         itemImage.enabled = false;
         itemNameText.enabled = false;
+        collectedCountText.text = "";
     }
 
     void Update()
@@ -41,5 +43,23 @@ public class GameCanvasHandler : MonoBehaviour
         itemImage.enabled = false;
         itemNameText.enabled = false;
         hideCoroutine = null;
+    }
+
+    public void UpdateCollectedCount(string itemName, int count)
+    {
+        collectedCountText.text = $"{Pluralize(itemName)} collected: {count}";
+    }
+
+    private static string Pluralize(string itemName)
+    {
+        if (string.IsNullOrEmpty(itemName))
+            return itemName;
+
+        char lastChar = itemName[itemName.Length - 1];
+        bool endsInConsonantY = lastChar == 'y' && itemName.Length > 1 && "aeiouAEIOU".IndexOf(itemName[itemName.Length - 2]) < 0;
+
+        return endsInConsonantY
+            ? itemName.Substring(0, itemName.Length - 1) + "ies"
+            : itemName + "s";
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -14,6 +15,8 @@ public class Player : MonoBehaviour
 
     bool isGrounded;
     bool isHurt;
+
+    private readonly Dictionary<string, int> collectedItemCounts = new();
 
     public GameCanvasHandler gameCanvasHandler;
 
@@ -79,7 +82,12 @@ public class Player : MonoBehaviour
             Item item = other.GetComponent<Item>();
             other.gameObject.SetActive(false);
 
+            collectedItemCounts.TryGetValue(item.itemName, out int currentCount);
+            int newCount = currentCount + 1;
+            collectedItemCounts[item.itemName] = newCount;
+
             gameCanvasHandler.DisplayItemInfo(item.itemName, item.itemSprite);
+            gameCanvasHandler.UpdateCollectedCount(item.itemName, newCount);
         }
     }
 
