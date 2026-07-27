@@ -135,10 +135,6 @@ PrefabInstance:
       propertyPath: hurtDuration
       value: 0.5
       objectReference: {fileID: 0}
-    - target: {fileID: -5681804720173796980, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
-      propertyPath: gameCanvasHandler
-      value: 
-      objectReference: {fileID: 1265102114}
     - target: {fileID: 404982605957317318, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
       propertyPath: m_Name
       value: Player
@@ -191,6 +187,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2274839105566218447, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
+      propertyPath: startingAmmo
+      value: 5
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -209,7 +209,7 @@ GameObject:
   - component: {fileID: 125149249}
   - component: {fileID: 125149250}
   - component: {fileID: 125149248}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Platform
   m_TagString: Platform
   m_Icon: {fileID: 0}
@@ -957,6 +957,10 @@ PrefabInstance:
       value: Enemy
       objectReference: {fileID: 0}
     - target: {fileID: 404982605957317318, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 404982605957317318, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
       propertyPath: m_TagString
       value: Enemy
       objectReference: {fileID: 0}
@@ -1030,6 +1034,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: -5681804720173796980, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
+    - {fileID: 2274839105566218447, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -1040,16 +1045,6 @@ PrefabInstance:
 --- !u!1 &690089872 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 404982605957317318, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
-  m_PrefabInstance: {fileID: 690089871}
-  m_PrefabAsset: {fileID: 0}
---- !u!95 &690089873 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: -4686862778587625284, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
-  m_PrefabInstance: {fileID: 690089871}
-  m_PrefabAsset: {fileID: 0}
---- !u!212 &690089874 stripped
-SpriteRenderer:
-  m_CorrespondingSourceObject: {fileID: 3578425882596946400, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
   m_PrefabInstance: {fileID: 690089871}
   m_PrefabAsset: {fileID: 0}
 --- !u!114 &690089875
@@ -1064,11 +1059,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b2f89f9e963cc244abaf1affff51e48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  spriteRenderer: {fileID: 690089874}
-  animator: {fileID: 690089873}
   moveSpeed: 4
   chaseRange: 5
   giveUpRange: 8
+  canBeStomped: 1
+  ammoDropPrefab: {fileID: 5591203847712634001, guid: 7eb05e24ac8e475d9e1a36b589440f05, type: 3}
 --- !u!1 &697390474
 GameObject:
   m_ObjectHideFlags: 0
@@ -1081,7 +1076,7 @@ GameObject:
   - component: {fileID: 697390478}
   - component: {fileID: 697390477}
   - component: {fileID: 697390476}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Tilemap
   m_TagString: Untagged
   m_Icon: {fileID: 0}

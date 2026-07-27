@@ -13,7 +13,8 @@ GameObject:
   - component: {fileID: 8502247932780899978}
   - component: {fileID: 2582798922845813927}
   - component: {fileID: 8747605226713645849}
-  m_Layer: 0
+  - component: {fileID: 1245359431891239136}
+  m_Layer: 11
   m_Name: Coin
   m_TagString: Item
   m_Icon: {fileID: 0}
@@ -164,5 +165,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bebc7da52ab87f446affcc639af5edb9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Item
+  itemType: 0
   itemName: Coin
   itemSprite: {fileID: -4986890610287934012, guid: 274d64617113287499ed1c4165d1d8f3, type: 3}
+--- !u!114 &1245359431891239136
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4863570499467144066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca7f47e8fcf44762ba981a918f3859e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Bobber
+  amplitude: 0.12
+  frequency: 1.2

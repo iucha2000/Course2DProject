@@ -1,18 +1,33 @@
 using UnityEngine;
 
+[RequireComponent(typeof(SpriteRenderer))]
+[RequireComponent(typeof(Animator))]
 public class Enemy : MonoBehaviour
 {
-    public SpriteRenderer spriteRenderer;
-    public Animator animator;
+    [Header("Movement")]
     public float moveSpeed = 4f;
     public float chaseRange = 5f;
     public float giveUpRange = 8f;
+
+    [Header("Combat")]
+    [Tooltip("Spiky enemies cannot be jumped on and have to be killed with a shuriken.")]
+    public bool canBeStomped = true;
+    [SerializeField] private GameObject ammoDropPrefab;
+
+    private SpriteRenderer spriteRenderer;
+    private Animator animator;
 
     private Transform player;
     private Vector3 startPosition;
     private bool isChasing;
 
-    void Start()
+    private void Awake()
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        animator = GetComponent<Animator>();
+    }
+
+    private void Start()
     {
         startPosition = transform.position;
 
@@ -23,12 +38,17 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    void Update()
+    private void Update()
     {
-        if (player == null) return;
+        if (player == null)
+        {
+            return;
+        }
 
         float distanceToPlayer = Vector2.Distance(transform.position, player.position);
 
+        // Two different ranges (start chasing closer than we stop chasing) so the enemy
+        // does not flicker in and out of chasing while the player stands near the edge.
         if (!isChasing && distanceToPlayer <= chaseRange)
         {
             isChasing = true;
@@ -54,5 +74,18 @@ public class Enemy : MonoBehaviour
         {
             animator.SetFloat("Run", 0f);
         }
+    }
+
+    /// <summary>Called when the player stomps this enemy or hits it with a shuriken.</summary>
+    public void Die()
+    {
+        if (ammoDropPrefab != null)
+        {
+            // The reward for killing an enemy: one shuriken back.
+            Instantiate(ammoDropPrefab, transform.position, Quaternion.identity);
+        }
+
+        // TODO(audio): AudioManager.Instance.PlaySfx(deathClip);
+        Destroy(gameObject);
     }
 }

@@ -14,7 +14,8 @@ GameObject:
   - component: {fileID: 8534433431360647068}
   - component: {fileID: -5681804720173796980}
   - component: {fileID: -4686862778587625284}
-  m_Layer: 0
+  - component: {fileID: 2274839105566218447}
+  m_Layer: 7
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -171,11 +172,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5725beb07b273324a83b78822a34ecef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  spriteRenderer: {fileID: 3578425882596946400}
-  rigidbody2D: {fileID: 1259299347222286687}
-  animator: {fileID: -4686862778587625284}
-  moveSpeed: 10
-  jumpForce: 10
+  moveSpeed: 7
+  jumpForce: 12
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  groundCheckRadius: 0.15
+  hurtDuration: 0.5
+  knockbackForce: 5
+  stompBounceForce: 11
+  stompNormalThreshold: 0.5
 --- !u!95 &-4686862778587625284
 Animator:
   serializedVersion: 7
@@ -198,3 +204,20 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &2274839105566218447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 404982605957317318}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 934fe737d8654466aa92f68126ad302c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
+  shurikenPrefab: {fileID: 3812445907116423807, guid: 135df5ccfa1140a192c057ce78824f8d, type: 3}
+  throwCooldown: 0.35
+  spawnOffset: 0.7
+  startingAmmo: 3
+  maxAmmo: 9

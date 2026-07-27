@@ -94,21 +94,55 @@ The finished game must demonstrate **every** box below.
 **Acceptance:** project compiles, both scenes open with no missing-script warnings, new layers and
 sorting layers appear in the Inspector dropdowns.
 
-### M1 — Player refactor & combat core
-- [ ] `Player.cs`: horizontal movement → `rb.linearVelocity` in `FixedUpdate` *(defect #1)*
-- [ ] `Player.cs`: ground check → `Physics2D.OverlapCircle` with a `Ground` LayerMask *(defect #2)*
-- [ ] `Player.cs`: `rigidbody2D` → `rb`, components resolved in `Awake` *(defects #4, #9)*
-- [ ] **Stomp** — `OnCollisionEnter2D`, `normal.y > 0.5f` → kill enemy + bounce
-- [ ] `PlayerCombat.cs` — `Fire1` throws, ammo count, cooldown
-- [ ] `Projectile.cs` — kinematic Rigidbody2D, `gravityScale 0`, trigger, `Destroy` on hit + lifetime
-- [ ] `Shuriken.prefab` + `Shuriken_Spin.controller` / `.anim` from the 8 `Saw.png` frames
-- [ ] `Item.cs` gains an `ItemType` enum (Coin / Cherry / Shuriken)
-- [ ] `Player.controller`: fix the overlapping `Run` thresholds *(defect #6)* and remove the
+### M1 — Player refactor & combat core ✅ DONE
+- [x] `Player.cs`: horizontal movement → `rb.linearVelocity` in `FixedUpdate` *(defect #1)*
+- [x] `Player.cs`: ground check → `Physics2D.OverlapCircle` with a `Ground` LayerMask *(defect #2)*
+- [x] `Player.cs`: `rigidbody2D` → `rb`, components resolved in `Awake` *(defects #4, #9)*
+- [x] **Stomp** — `OnCollisionEnter2D`, `normal.y > 0.5f` → kill enemy + bounce
+- [x] `PlayerCombat.cs` — `Fire1` throws, ammo count, cooldown
+- [x] `Projectile.cs` — `Destroy` on hit + `Destroy(gameObject, lifetime)`
+- [x] `Shuriken.prefab` + `Shuriken_Spin.controller` / `.anim` from the 8 `Saw.png` frames
+- [x] `AmmoPickup.prefab` — what a killed enemy drops
+- [x] `Item.cs` gains an `ItemType` enum (Coin / Cherry / Shuriken)
+- [x] `Player.controller`: fixed the overlapping `Run` thresholds *(defect #6)* and deleted the
       unreachable `Player_Fall → Run` transition *(defect #7)*
+- [x] Layers assigned: Player→`Player`, Tilemap+Platform→`Ground`, Enemy instance→`Enemy`,
+      Cherry/Coin/AmmoPickup→`Pickup`, Shuriken→`Projectile`
+
+**Deviations from the original plan (deliberate):**
+- `Enemy.Die()` and the ammo drop were pulled forward from M2, because stomping is pointless
+  without something to kill and the ammo loop is what makes stomping worth doing.
+- The shuriken uses a **Dynamic** Rigidbody2D with `gravityScale 0`, not Kinematic. A kinematic
+  body does not generate trigger contacts against the static tilemap collider unless
+  `useFullKinematicContacts` is on, so a kinematic shuriken would fly straight through walls.
+- The Enemy is a Player-prefab instance, so it inherited the new `PlayerCombat` component and
+  would have started throwing shuriken. `PlayerCombat` was added to the instance's
+  `m_RemovedComponents`. **M2 promotes Enemy to its own prefab and this hack goes away.**
 
 **Acceptance:** player moves without tunneling; ground check never self-hits; `Fire1` spawns a
-spinning shuriken that despawns on hit or after its lifetime; stomping an enemy kills it and bounces
-the player; walking into an enemy still hurts.
+spinning shuriken that despawns on hit or after its lifetime; stomping an enemy kills it, bounces
+the player and drops ammo; walking into an enemy still hurts.
+
+#### M1 follow-up (after first playtest)
+- [x] Thrown shuriken scaled down `0.3 → 0.2`
+- [x] **Aiming now follows the mouse cursor.** `Camera.main.ScreenToWorldPoint(Input.mousePosition)`
+      gives a world-space aim point; `Launch` takes a `Vector2` direction instead of a left/right
+      float. The player also turns to face the throw.
+- [x] **Ammo drop made visually distinct from the damaging projectile.** The standard fix is to
+      change *motion language* and *palette* rather than the sprite, so the player reads "safe to
+      touch" at a glance:
+      | | Thrown shuriken | Ammo drop |
+      |---|---|---|
+      | Colour | white / steel | **gold** — the same tint Cherry and Coin already use |
+      | Spin | full speed | **0.3× speed** (`Shuriken_Pickup.controller`, same clip reused) |
+      | Motion | flies in a straight line | **bobs gently in place** (`Bobber.cs`) |
+      | Scale | 0.2 | 0.26 — deliberately a bit larger, easier to spot and collect |
+- [x] **Shuriken despawns at the edge of the screen.** It travelled 14 u/s × 3 s = 42 units while
+      the camera only shows ~17.8 units, so it could kill enemies well outside the view. `Update`
+      now converts the position with `WorldToViewportPoint` and destroys it once it leaves the
+      0..1 range. Done by hand rather than with `OnBecameInvisible`, because that message counts
+      the Scene view as a camera and so misbehaves while testing in the Editor.
+- [x] **`Bobber` on Cherry and Coin** so every pickup in the game shares one floating motion
 
 ### M2 — Enemies, hazards, camera bounds
 - [ ] `Enemy.cs`: `Die()` → `Instantiate` ammo drop + `Destroy`; `canBeStomped` flag
@@ -172,6 +206,26 @@ Running list. Newest section at the bottom.
 
 > Reminder: **close Unity before the next milestone**, since scene and prefab YAML will be edited
 > directly. Commit first.
+
+### After M1
+1. **Open Unity and check the Console.** Everything below was written as raw YAML, so this is the
+   first real test of it.
+2. **⚠️ Highest-risk item — select `Assets/Prefabs/Player.prefab` and check the `Player` component's
+   `Ground Layer` field shows `Ground` ticked.** A `LayerMask` is serialised as a nested
+   `m_Bits` value and that format was written by hand. **If it reads `Nothing`, set it to `Ground`
+   manually** — otherwise `CheckGround()` always returns false and the player can never jump.
+3. On the same prefab, confirm `PlayerCombat` is present and its `Shuriken Prefab` field points at
+   `Shuriken`.
+4. Select the `Enemy` in `Level1` and confirm: layer is `Enemy`, `Ammo Drop Prefab` is `AmmoPickup`,
+   `Can Be Stomped` is ticked, and there is **no** `PlayerCombat` component on it.
+5. **Playtest `Level1`:**
+   - move and jump — should feel tighter than before, and you should not be able to clip into tiles
+   - **throw a shuriken with left Ctrl or left mouse button** (`Fire1`). You start with 3.
+   - **jump on the enemy's head** → it dies, you bounce, and it drops a shuriken pickup
+   - **walk into the enemy from the side** → you get hurt and knocked back, as before
+   - shuriken should stop on walls and vanish after ~3 s if it hits nothing
+6. **Report how it feels** — move speed, jump height, throw cooldown, stomp bounce, shuriken speed.
+   These are all single numbers I can tune.
 
 ---
 
