@@ -65,6 +65,17 @@ public class Projectile : MonoBehaviour
             {
                 enemy.Die();
             }
+
+            Destroy(gameObject);
+            return;
+        }
+
+        // Ignore other trigger volumes. They are markers rather than solid geometry -
+        // the camera bounds shape is one, and without this the shuriken would be
+        // destroyed the instant it spawned inside it.
+        if (other.isTrigger)
+        {
+            return;
         }
 
         // Anything solid stops the shuriken, including the tilemap.

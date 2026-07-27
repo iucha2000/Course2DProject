@@ -125,6 +125,12 @@ Inspector work. Rules:
    `m_EditorClassIdentifier: Assembly-CSharp::<ClassName>` — update **both** when renaming a class.
 4. Renaming an asset must move its `.meta` too (use `git mv` for both) or the GUID changes and every
    reference breaks.
+5. **Prefab variants**: the file is a single `PrefabInstance` with `m_SourcePrefab` pointing at the
+   base. The anchor must be a **generated id** (`--- !u!1001 &3853355706663758102`) — using the
+   `&100100000` that normal prefabs use for their main asset does not work.
+6. Renaming a `[SerializeField]` field leaves stale `propertyPath` overrides in every scene that
+   overrode it. They are harmless but should be removed; each modification entry is exactly four
+   lines (`- target:` / `propertyPath:` / `value:` / `objectReference:`).
 
 ## Workflow
 

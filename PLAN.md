@@ -144,16 +144,82 @@ the player and drops ammo; walking into an enemy still hurts.
       the Scene view as a camera and so misbehaves while testing in the Editor.
 - [x] **`Bobber` on Cherry and Coin** so every pickup in the game shares one floating motion
 
-### M2 — Enemies, hazards, camera bounds
-- [ ] `Enemy.cs`: `Die()` → `Instantiate` ammo drop + `Destroy`; `canBeStomped` flag
-- [ ] Enemy gets its own `Enemy.controller` (it currently borrows `Player.controller`)
-- [ ] Enemy promoted to a real prefab; **`SpikyEnemy` as a prefab variant** (`canBeStomped: false`)
-- [ ] `Hazard.cs` + `Saw.prefab` (spinning, damages on contact, not killable) + a moving variant
-- [ ] `PlayerHealth.cs` — 3 hearts, cherry heals, death reloads the level
-- [ ] `CinemachineConfiner2D` per level so the camera stops at the level edges
+### M2 — Enemies, hazards, camera bounds ✅ DONE
+- [x] `Enemy.cs`: `Die()` → `Instantiate` ammo drop + `Destroy`; `canBeStomped` flag *(landed in M1)*
+- [x] `Enemy.controller` — its own state machine (Idle / Run on the `Run` float). **Reuses
+      `Player_Idle.anim` and `Player_Run.anim` rather than duplicating them**: sprite-swap clips
+      target the root SpriteRenderer via an empty path, so they work on any object that has one
+- [x] **Enemy promoted to a real prefab.** It was a Player prefab instance with the `Player` script
+      stripped and `Enemy` bolted on — which is why it kept inheriting new Player components
+- [x] **`SpikyEnemy` as a prefab variant** — purple tint, `canBeStomped: false`, slower but with a
+      longer chase range. Must be killed with a shuriken, which is what makes ammo matter
+- [x] `Hazard.cs` + `Saw.prefab` — spinning trigger that hurts on contact and cannot be killed
+- [x] `PatrolMover.cs` — offset of zero means "stay put", so **one Saw prefab covers both the fixed
+      and the moving saw**; the level decides by setting the offset per instance
+- [x] `PlayerHealth.cs` — 3 hearts, cherry heals, death reloads the current level by build index
+- [x] `CinemachineConfiner2D` + a `CameraBounds` PolygonCollider2D in every level
+
+**Design notes:**
+- All damage now goes through one public entry point, `Player.TakeHit(direction)`. Collisions pass
+  the contact normal; hazards have no contact point, so they pass the direction away from their own
+  centre. `TakeHit` ignores calls while already hurt, which is what gives the invulnerability window.
+- `Hazard` uses `OnTriggerStay2D` as well as `OnTriggerEnter2D`. Without Stay, a player knocked back
+  but still overlapping the blade when invulnerability ends would never be hit again.
+- The Saw has a **Kinematic** Rigidbody2D. A moving collider with no rigidbody forces Unity to
+  rebuild the static collider tree every frame.
+- `Player` now declares `[RequireComponent]` for `PlayerCombat` and `PlayerHealth` instead of
+  null-checking them, so the dependency is enforced when the component is added.
 
 **Acceptance:** both enemy types behave correctly, saws hurt, hearts deplete and refill, the camera
 never shows past the tilemap.
+
+> ⚠️ **`CameraBounds` polygon is a placeholder** covering the current tilemap (x −28..26, y −5..7).
+> M4 resizes it per level once the levels are actually designed.
+
+#### M2 follow-up (after playtest) — combat feel
+
+**1. Damage timing.** `hurtDuration` was doing two jobs at once, which is why it felt wrong. Split
+into two values, which is how platformers normally handle it:
+
+| | Before | After | Why |
+|---|---|---|---|
+| Lose control (hit stun) | 0.5 s | **0.25 s** | Long control loss feels sluggish and unfair |
+| Cannot be hit again (i-frames) | 0.5 s | **1.2 s** | 0.5 s meant a saw could drain all 3 hearts in 1.5 s |
+| Sprite blinks while invulnerable | — | **yes, 0.08 s** | Without it the player cannot tell they are safe, so damage feels random |
+
+`TakeHit` is now gated on `isInvulnerable` rather than `isHurt`, so control returns long before you
+can be hurt again.
+
+**2. Dive stomp.** Landing on an enemy no longer kills it — that just hurts you. Holding **S or Down
+in the air** slams the player down at `diveSpeed`, and a kill needs all three of: coming down on top,
+actively diving, and a currently-stompable enemy. Killing by landing is now a deliberate, committed
+act rather than something that happens by accident.
+
+**3. Spiked Enemy is beatable without ammo.** It cycles **3 s armoured / 1 s vulnerable** and changes
+colour while vulnerable — that colour change is the player's only telegraph, so it doubles as the
+warning. You can always eventually kill one with a well-timed dive, but the 1-in-4 window plus the
+dive requirement keeps ammo clearly the easier answer.
+
+> Note: `SpikyEnemy.prefab` (hand-written) was replaced by an Editor-made **`Spiked Enemy.prefab`**.
+> Prefab variant YAML needs a generated anchor id, not `&100100000` — see `CLAUDE.md`.
+
+#### M2 follow-up 2 — two bugs found in playtest
+
+**Shuriken despawned instantly.** A regression from adding the camera confiner: the `CameraBounds`
+PolygonCollider2D is a trigger on the Default layer, and Projectile (9) vs Default (0) is enabled in
+the collision matrix. Every shuriken spawned *inside* that level-sized trigger, so
+`OnTriggerEnter2D` fired on the first physics step and destroyed it. Fixed twice over, because each
+part was wrong on its own:
+- `Projectile` now **ignores trigger colliders** — a projectile should be stopped by solid geometry
+  and enemies, not by marker volumes
+- The `CameraBounds` collider now sets **`m_ExcludeLayers` to everything**, so the camera hint takes
+  no part in physics at all
+
+**Stomp bounce was invisible.** The bounce was applied and then immediately erased: the stomp sets
+`isDiving = false`, so on the next frame `ReadInput` saw "airborne, not diving, Down still held",
+requested another dive, and `Dive()` overwrote the `+11` bounce with `-20`. Diving now needs a
+**fresh key press** rather than a held key. The press is detected before the hit-stun early-return,
+otherwise releasing the key while stunned would go unnoticed and swallow the next dive.
 
 ### M3 — Audio, PlayerPrefs, HUD, pause, flow
 > **Not blocked on audio files.** `AudioManager` and the volume plumbing get built in full, but every
@@ -226,6 +292,28 @@ Running list. Newest section at the bottom.
    - shuriken should stop on walls and vanish after ~3 s if it hits nothing
 6. **Report how it feels** — move speed, jump height, throw cooldown, stomp bounce, shuriken speed.
    These are all single numbers I can tune.
+
+### After M2
+1. **Open Unity and check the Console.**
+2. **⚠️ Highest-risk item — open `Assets/Prefabs/SpikyEnemy.prefab`.** It is a **prefab variant**,
+   written by hand as a `PrefabInstance` pointing at `Enemy.prefab`. It should open showing a purple
+   enemy with `Can Be Stomped` unticked, and the Inspector header should say it is a variant.
+   **If it fails to open or looks wrong, delete it and make one in the Editor instead:** right-click
+   `Enemy.prefab` → `Create` → `Prefab Variant`, rename to `SpikyEnemy`, then set the tint to purple,
+   untick `Can Be Stomped`, and set Move Speed 3 / Chase Range 6. Tell me either way.
+3. Check the `Enemy` in `Level1` is now an instance of **`Enemy.prefab`** (blue prefab icon), sits at
+   x = 20, and is red — not a Player prefab any more.
+4. Select the `CinemachineCamera` and confirm `CinemachineConfiner2D` is there with
+   `Bounding Shape 2D` set to the new **`CameraBounds`** object in the scene.
+5. **Playtest `Level1`:**
+   - walk into the enemy → lose a heart, get knocked back, brief invulnerability
+   - lose all 3 hearts → the level reloads
+   - collect a cherry → a heart comes back
+   - drag a **`Saw`** prefab into the scene and walk into it → it hurts and cannot be killed.
+     Set its `Patrol Mover → Offset` to something like `(0, 3)` to make it move
+   - drag a **`SpikyEnemy`** in → jumping on it should hurt you rather than kill it; a shuriken kills it
+   - walk to the far left and right edges → the camera should stop instead of showing empty space
+6. **Report feel:** heart count, knockback strength, saw size, whether the camera bounds feel right.
 
 ---
 
