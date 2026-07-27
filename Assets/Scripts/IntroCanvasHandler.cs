@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CanvasHandler : MonoBehaviour
+public class IntroCanvasHandler : MonoBehaviour
 {
     public Button startButton;
 
@@ -11,13 +11,8 @@ public class CanvasHandler : MonoBehaviour
         startButton.onClick.AddListener(OnButtonClicked);
     }
 
-    void Update()
-    {
-
-    }
-
     private void OnButtonClicked()
     {
-        SceneManager.LoadScene("GameScene");
+        SceneManager.LoadScene("Level1");
     }
 }
