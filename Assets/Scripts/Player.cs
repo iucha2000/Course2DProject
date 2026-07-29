@@ -596,7 +596,19 @@ public class Player : MonoBehaviour
         //
         // Still crouched means still under a ceiling, so the player shuffles rather than runs.
         float speed = isCrouched ? moveSpeed * crouchSpeedScale : moveSpeed;
-        rb.linearVelocity = new Vector2(horizontalInput * speed, rb.linearVelocity.y);
+
+        // A slide that runs out under a ceiling must not leave the player parked in the slide
+        // pose with nothing happening - stationary in a stretched-out sliding sprite reads as a
+        // bug, not as a crouch. With no input they keep drifting the way the slide was already
+        // going, so a tunnel always carries them out of itself and can never trap them. Input
+        // still steers and still reverses, so nothing is taken away from the player.
+        float direction = horizontalInput;
+        if (isCrouched && Mathf.Approximately(direction, 0f))
+        {
+            direction = dashDirection;
+        }
+
+        rb.linearVelocity = new Vector2(direction * speed, rb.linearVelocity.y);
     }
 
     private void Jump()

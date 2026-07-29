@@ -1302,6 +1302,35 @@ problem here will be an *asset* problem, not a compile error.
    and whether the intro layout wants moving — the title, frog and menu column are RectTransforms
    and can be nudged freely in the Editor without touching code.
 
+#### M4 follow-up 1 — three fixes from the first Level 1 playtest
+
+**1. Everything was buried in the ground: the Tilemap had a transform offset.** The `Tilemap` child
+of the `Grid` sat at `m_LocalPosition (0, 2, 0)`, so cell y=−1 actually rendered and collided at
+world y=1..2 — the ground surface was at **world y=2, not y=0**. Every prefab was placed against the
+cell grid and therefore landed exactly 2 units low, inside the terrain.
+
+Fixed by **zeroing the Tilemap transform** rather than adding 2 to fifty-odd positions, so from now
+on **cell y == world y** and there is no second coordinate system to remember. The offset was a
+leftover from the original test level, whose `CameraBounds` had been written to match it.
+
+> Lesson worth keeping: a Tilemap can be offset from its Grid, and nothing about the cell
+> coordinates hints at it. Check `Grid`/`Tilemap` transforms before trusting cell = world.
+
+**2. A slide that ran out under a ceiling left the player parked in the slide pose.** `isCrouched`
+correctly stayed true — that part was by design, since the flat sprite is right for shuffling — but
+with no input the player simply stopped, and a stationary character in a stretched-out *sliding*
+sprite reads as a bug rather than as a crouch.
+
+`Player.Move` now falls back to `dashDirection` when crouched with no input, so the shuffle
+continues the way the slide was already going and a tunnel always carries the player out of itself.
+Holding a direction still steers, and still reverses, so no control is taken away.
+
+**3. The map was mostly flat ground and gaps.** The ground now rolls between y=−2 and y=3 —
+hills, a raised enemy shelf, a dip under the dash line, a staircase up to a plateau — plus pillar
+stubs, an overhang, floating rocks and two tunnel roofs. **Every gap width is unchanged**, because
+those are the measured numbers the mechanics depend on; only the silhouette around them changed.
+1142 tiles, up from 1056.
+
 ### After M4 — Level 1 built
 `Level1.unity` was rebuilt from `Design/Level1.txt`: the whole tilemap, every gameplay prefab, and
 the `CameraBounds` polygon. Written as raw YAML with Unity closed, so this is the first real test.
