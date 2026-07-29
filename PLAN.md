@@ -1509,6 +1509,57 @@ floating rock at x131–133. Travel cut to 3 and the saw moved to x=128.
 > Level 3 is still an untouched copy of the original Level 1 and still contains `CubeObstacle`,
 > so defect #10 remains owed.
 
+### After M4 — Level 3 built (NOT YET COMMITTED — playtest first)
+
+`Level3.unity` rebuilt from `Design/Level3.txt` as **"The Sunken Vault"** — the hardest, most
+mechanical and most enemy-heavy level. Mossy dungeon stone with **crystal** caverns and **wooden**
+scaffolding. 1027 tiles, 80 instances.
+
+**Three hazards that appear nowhere in Levels 1–2**
+
+| Hazard | How it works | New code? |
+|---|---|---|
+| **Ceiling spikes** | `Spikes` rotated 180° under a lowered lintel. Rotating the *transform* (not flipping the sprite) is what keeps the collider with the artwork — a `flipY` would leave a downward-pointing spike with its collider still at the bottom | none |
+| **Crushers** | a solid block tagged `Obstacle`, driven by the existing `Platform`. `Player.TryTakeContactDamage` already damages on the `Obstacle` tag, and `OnCollisionStay2D` already re-hits — so a *moving* damaging block needed **no script at all** | none |
+| **Retracting spikes** | `RetractingSpikes.cs` — sink and rise on a cycle, with a colour pulse before they return. A timed hazard with no tell is only survivable by having already died to it | one script |
+
+**Two of them create a slide interaction that falls out of the existing rules.** The crusher bottoms
+out 1.0 above the floor, and the ceiling-spike collider starts at 1.41 — a standing player (2.0
+tall) is hit by both, a sliding one (0.875) passes under. Because the crusher is on the `Ground`
+layer, `HasHeadroom` correctly keeps the player crouched while underneath it, so this works without
+any special case.
+
+**Mechanic gates, all derived rather than eyeballed**
+
+| Gap | Needs | Verdict |
+|---|---|---|
+| x25–31, x53–59, x79–85, x159–165 | 6.25 | plain jump (8.56) |
+| x101–111 | 10.25 | **air dash required** — jump alone gives 8.56 |
+| x126–139 | 13.25 | **ferry only** — beyond jump+dash 11.76 |
+
+**Ammo scarcity is the point.** Five Spiked Enemies (shuriken-only) against **one** AmmoPickup and
+a starting three shots. Ten ordinary enemies are the ammo supply — stomping them is how you fund
+the rest, which is the risk/reward loop the design has been building towards since M1.
+
+Three checkpoints (x46, x114, x142), each before a difficulty spike rather than after.
+
+**Playtest checklist**
+1. **Console first.** One new script, two new prefabs.
+2. **⚠️ Open `Assets/Prefabs/Crusher.prefab`** — a grey block, tag **Obstacle**, layer **Ground**,
+   with a `Platform` component whose Offset is `(0, -3)`. If the tag is wrong it will not hurt you.
+3. **Open `Assets/Prefabs/RetractingSpikes.prefab`** — trigger collider, `Hazard` **and**
+   `RetractingSpikes` components.
+4. **Ceiling spikes (x36–42):** they should hang *point-down* from the lintel. If they point up,
+   the rotation did not apply — set the instance's Z rotation to 180.
+5. **Crushers (x64/70/76):** three stampers out of phase. Check you can slide under one at the
+   bottom of its travel, and that touching it costs a heart.
+6. **Retracting spikes (x10–14, x145–147):** a staggered wave; walk the gaps.
+7. **Report:** whether it is harder than Level 2 by the right margin, and whether the ammo squeeze
+   bites or just frustrates.
+
+> With `CubeObstacle` now gone from all three levels, **defect #10 is closed** — nothing references
+> the `Library/PackageCache/` sprite any more. The prefab itself can be deleted whenever you like.
+
 ---
 
 ## Deferred manual steps
