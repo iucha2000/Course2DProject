@@ -43,7 +43,7 @@ checklist had ticked but which was not actually in any script. Five are now repa
 | `Time.deltaTime` | M3 | banner fade, and the pause menu's two clocks vs `Time.unscaledDeltaTime` |
 | `OnCollisionExit2D` | M3 | coyote time (`Player.OnCollisionExit2D`) |
 | `yield return null` | M3 | the per-frame step of the banner fade (`PickupBanner.HideAfterDelay`) |
-| `Transform.Translate` | **M4** — still owed | scrolling background element |
+| `Transform.Translate` | **M4** | `ScrollingBackground.cs` — the per-level drifting backdrop |
 
 `Physics2D.Raycast` was in the same position and was repaid in M2.5 — it is used three times in the
 enemy's ledge, blocked and clearance checks.
@@ -101,10 +101,11 @@ The finished game must demonstrate **every** box below.
 - [x] `AddForce` + `ForceMode2D.Impulse`, `linearVelocity`
 - [x] MonoBehaviour lifecycle, Inspector-serialized fields
 - [x] `GetComponent<T>`, `CompareTag`, `FindGameObjectWithTag`
-- [ ] `Transform.Translate` / `SetParent`, `Time.deltaTime` — `SetParent` restored in M3
+- [x] `Transform.Translate` / `SetParent`, `Time.deltaTime` — `SetParent` restored in M3
       (`Hud.BuildHearts`, with `worldPositionStays: false`), `Time.deltaTime` restored in M3
-      (banner fade + pause clocks). ⚠️ **`Translate` is still missing** — went in the M1 player
-      refactor, **owed by M4** on a scrolling background element
+      (banner fade + pause clocks). **`Translate` repaid in M4** — it went in the M1 player
+      refactor, and `ScrollingBackground` is the honest place for it: a decorative layer with no
+      Rigidbody2D, where there is no solver to fight and nothing to tunnel through
 - [x] Coroutines — stored handle + `StopCoroutine`, `WaitForSeconds`, `yield return null`
       *(`yield return null` was missing until M3 despite this box being ticked; the banner fade
       in `PickupBanner` now uses it)*
@@ -908,17 +909,26 @@ until there is room to stand; taking a hit cancels a dash; dashing carries you t
 never through scenery.
 
 ### M4 — Level design & build
-- [ ] Layout spec for **Level 1 (teach)**, **Level 2 (test)**, **Level 3 (twist)** — ASCII grid on
-      tilemap cell coordinates, the specific `Terrain (16x16)_N` tile for every cell, exact prefab
-      world coordinates, and a per-section note on why it plays well
-- [ ] User paints the tilemaps; prefabs placed via scene YAML from the spec
-- [ ] `CubeObstacle.prefab` sprite repointed off `Library/PackageCache/` *(defect #10)*
-- [ ] **Scrolling background element using `Transform.Translate`** — repays the checklist item lost
+- [x] Layout spec for **Level 1 (teach)**, **Level 2 (test)**, **Level 3 (twist)** — `Design/Level1.txt`,
+      `Level2.txt`, `Level3.txt`: an ASCII grid on tilemap cell coordinates where each character
+      picks a material, with the nine-slice derived from neighbours rather than written per cell
+- [x] Tilemaps and prefabs written straight into the scene YAML from those specs
+      *(the original plan had the user paint them by hand; writing them was chosen instead)*
+- [x] `CubeObstacle` *(defect #10)* — **closed by removal**. Its sprite pointed into
+      `Library/PackageCache/`, and no level uses it any more, so nothing references the broken
+      GUID. The prefab can be deleted whenever convenient
+- [x] **Scrolling background element using `Transform.Translate`** — repays the checklist item lost
       in the M1 player refactor. A non-physics decorative object is the honest place for `Translate`,
       since the whole reason it left `Player` is that it must not be used on a Rigidbody2D
-- [ ] Balance pass from playtest notes
+- [ ] Balance pass from playtest notes — **the only M4 item left**. Everything is verified
+      geometrically (gap gates, hazard overlap, rider headroom, reachability) but nothing has been
+      played, so nothing is verified by feel
 
 **Acceptance:** 8–12 min playtime, every checklist box ticked, playable start to finish.
+
+> **Checklist status:** the only unticked concept box left is **Audio**, and that is Inspector work
+> — the system is built and every call site is live, so it needs clips assigned and nothing else.
+> See *Deferred manual steps*.
 
 ---
 
@@ -1559,6 +1569,67 @@ Three checkpoints (x46, x114, x142), each before a difficulty spike rather than 
 
 > With `CubeObstacle` now gone from all three levels, **defect #10 is closed** — nothing references
 > the `Library/PackageCache/` sprite any more. The prefab itself can be deleted whenever you like.
+
+### After M4 — scrolling backgrounds (NOT YET COMMITTED — playtest first)
+
+The last unticked checklist item, `Transform.Translate`, is repaid. Each level now has its own
+backdrop, and each is a **second Tilemap** under the same `Grid` — sorting layer `Background`
+(id 1841247902), **no `TilemapCollider2D`**, carrying `ScrollingBackground.cs`.
+
+| Level | Layer | Pattern | Period | Drift |
+|---|---|---|---|---|
+| 1 | `BackgroundFar` | `hillsFar` — big rolling hills, dark and desaturated | 24 | 0.10 u/s |
+| 1 | `BackgroundNear` | `hillsNear` — smaller, lighter hills in front | 16 | 0.28 u/s |
+| 2 | `Background` | `hall` — brick piers, a string course, stone merlons | 8 | 0.18 u/s |
+| 3 | `Background` | `crystals` — 2-wide stalagmites and stalactites | 8 | 0.22 u/s |
+
+**Level 1 carries two layers, and the speed difference is the whole trick.** The first attempt drew
+a *3-thick band following a crest*, which was wrong twice over: a constant-thickness band reads as a
+zigzag stripe rather than a hillside, and it puts the tile set's **grass caps down the slope**
+instead of along the top. Hills have to be **solid masses filled to a floor** — then the nine-slice
+puts grass on the crest and dirt underneath by itself, which is the entire reason this tile set
+looks like a hillside.
+
+Two layers then give it depth: the far one is bigger, darker and moves at **0.10 u/s**, the near one
+is smaller, lighter and moves at **0.28 u/s**. Both sit on the `Background` sorting layer and are
+separated by **sorting order** (0 and 1) — the same within-layer ordering the gameplay sprites use.
+Their periods differ (24 vs 16), so the two crests drift in and out of phase and the repeat is much
+harder to notice than a single layer's would be.
+
+The far layer fills down to y=0 and the near one to y=-2; since the near crest never drops below
+y=0, the two overlap everywhere and no gap can open between them.
+
+Levels 2 and 3 stay on one layer on purpose — they are *interiors*, and a hall or a cavern has no
+horizon to put a second depth against.
+
+**Why a Tilemap and not a big sprite.** There is no background art in this project, and stretching
+a 16 px tile across a screen just gives a flat smear. A tilemap reuses the nine-slice sets already
+proven on the terrain, so the backdrop is built from the same material vocabulary as the level in
+front of it — which is what makes it look deliberate rather than pasted on.
+
+**Distance is one field, not new art.** `Tilemap.m_Color` tints the whole layer, so each backdrop
+is darkened and desaturated towards its level's palette. No second set of sprites was needed.
+
+**How the endless drift works.** The pattern repeats every 8 tiles, and the layer is drawn **two
+periods wider than the level at each end**. `ScrollingBackground` translates it and, once a whole
+period has gone by, snaps back by exactly that — so the frame after the snap is identical to the
+frame before it. One period of overscan was not enough: the layer drifts a full period before
+snapping, so its leading edge would have arrived exactly at x=0.
+
+> `Transform.Translate` is correct *here* for the same reason it was wrong on the player: this
+> object has no Rigidbody2D. Nothing collides with it and no solver has an opinion about where it
+> is, so there is no simulation to fight and nothing to tunnel through.
+
+**Playtest checklist**
+1. **Console first** — one new script, and three scenes gained a Tilemap each.
+2. **Check the layer order.** The backdrop must sit *behind* everything. If it draws over the
+   level, its `TilemapRenderer → Sorting Layer` is not `Background`.
+3. **Confirm it has no collider** — you should not be able to stand on the scenery.
+4. **Watch the wrap.** Stand still for ~30 s in each level; the drift should be continuous with no
+   visible jump or seam.
+5. **Report the speeds.** Each is one Inspector field (`Scroll Speed` on the backdrop object). Too
+   fast reads as the world moving rather than as distance — and on Level 1 what matters is the
+   *ratio* between the two layers, not either number on its own.
 
 ---
 
