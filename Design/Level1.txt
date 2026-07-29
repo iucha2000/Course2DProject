@@ -1,6 +1,8 @@
-﻿# Level1 - The Overgrown Bank (nature)
+﻿# Level1
 # grid origin x=0  top row y=9  bottom row y=-6   (200 x 16)
-# '#' = solid terrain, '.' = empty. Nine-slicing is derived from neighbours.
+# '.' = empty. Any other char is solid; the char picks the material (see write_tilemap.ps1).
+# '#' = the level's default theme. Nine-slicing is derived from neighbouring SOLIDS, so a
+# region of one material embedded in another still reads as one continuous mass.
 
   9 |........................................................................................................................................................................................................
   8 |##....................................................................................................................................................................................................##

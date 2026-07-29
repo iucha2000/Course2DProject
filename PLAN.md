@@ -1421,6 +1421,94 @@ the `CameraBounds` polygon. Written as raw YAML with Unity closed, so this is th
 > Not yet done for Level 1: decorative tiles (vines/chains on a second non-collidable Tilemap) and
 > the `Transform.Translate` scrolling background. Level 2 and Level 3 are still Level1 copies.
 
+### After M4 — Level 2 built (NOT YET COMMITTED — playtest first)
+
+`Level2.unity` was rebuilt from `Design/Level2.txt` as **"The Iron Keep"**. Two new assets and one
+new script came with it, so this is their first test.
+
+**What is new**
+
+| Asset | What it is |
+|---|---|
+| `Assets/Prefabs/Spikes.prefab` | ground spikes — a trigger on the `Hazard` layer carrying the **existing** `Hazard` component, so it needed no new code. Uses the `Spike` sprite already sliced inside the Asset Store pack's `Objects.png` (16 × 16 at 16 PPU = exactly one tile) |
+| `Assets/Scripts/CrumblingPlatform.cs` | a platform that gives way ~0.6 s after you land, then returns after 2 s. **This repays the "disappearing platform" item M4 already owed** |
+| `Assets/Prefabs/CrumblingPlatform.prefab` | 3 units wide, kinematic, carrying that script |
+
+**Why the crumble telegraphs by colour.** Shaking it would mean writing transform positions on a
+kinematic body every frame, which is the movement model this project rejects everywhere else. It
+fades toward a warning tint instead — the same language the Spiked Enemy already uses.
+
+**Three materials, not one.** The tilemap generator now takes a material per span/block, so the
+keep is grey stone outside, **red brick** for the tower and vault, and **dark wood** for the
+scaffolding ledges inside it. Nine-slicing keys off *occupancy* rather than material, so a brick
+tower embedded in a stone wall still reads as one continuous mass rather than two stuck together.
+Only the seven clean nine-slice sets on the sheet are offered — the gold and beam sets are laid
+out differently and would put the wrong piece in every corner.
+
+**The dash and the slide are back.** The first version of this level used neither, which made it
+narrower than Level 1 despite being harder. It now has:
+- a **slide tunnel** under the curtain wall (6 tiles, longer than one 3.2 u dash, so you shuffle)
+- an **11-tile rampart gap** that needs 10.25 of centre travel — jump alone reaches 8.56
+- a **treasure vault** sealed behind a 1-tile passage: six coins and a cherry, reachable only by
+  sliding, and only if you take the *spiked floor* instead of climbing. Risk for reward
+
+**Shape of the level.** Level 1 is a walk; this is a **climb**.
+
+| x | Section | What it does |
+|---|---|---|
+| 0–23 | Courtyard | teaches **spikes** on flat ground with room to jump them |
+| 24–30 | 7-tile pit | L1's first pit was 5 |
+| 39–43 | **Shallow spike pit** | the jump is the safe route; falling in costs health, not a life |
+| 59–64 | Checkpoint 1, tower doorway | |
+| 65–100 | **The tower** | floor is spiked, so falling off the climb hurts. Two **crumbling platforms** are load-bearing — ledge 2 cannot be reached any other way. Two vertical saws sweep the shaft |
+| 101–112 | Top landing → rampart A, **Checkpoint 2** | the tower is sealed at floor level; climbing is the only way out |
+| 113–119 | 7-tile gap **with nothing underneath** | a miss is fatal from here on |
+| 129–140 | 12-tile gap | the ferry is the only way across |
+| 153–174 | Descending ramparts | three drops of 3, over open air |
+| 175–199 | Courtyard, exit | |
+
+Every climb hop was checked against the 3.67 jump: 3.00, 2.98, 2.02, 1.98, 2.02 — the pressure is
+the crumble timer, not a jump you can physically miss, because stacking both would be unfair.
+
+**Playtest checklist**
+1. **Console first.** One new script, two new prefabs, all hand-written.
+2. **⚠️ Highest risk — open `Assets/Prefabs/Spikes.prefab`.** It should show a pale grey spike with
+   a *trigger* BoxCollider2D (0.86 × 0.58, offset y −0.2) and a `Hazard` component, on layer
+   `Hazard`. If the sprite is missing, set it to `Objects.png → Spike`.
+3. **Open `Assets/Prefabs/CrumblingPlatform.prefab`** — it should show the `CrumblingPlatform`
+   script with Crumble Delay 0.6, Respawn Delay 2.
+4. **Check the camera follows the player** (same stripped-transform repoint as Level 1).
+5. **Walk into spikes** — they should hurt exactly like a saw, and hurt *again* if you stand in
+   them past the invulnerability window.
+6. **The tower.** Land on a crumbling platform: it should tint orange, drop away, and come back a
+   couple of seconds later. Check you can complete the climb, and that falling lands you on the
+   spiked floor rather than killing you.
+7. **The ramparts.** Confirm the 7-tile gap is fatal, and the ferry crosses the 12-tile gap with a
+   small hop on and off.
+8. **Report:** whether the crumble delay (0.6 s) is too tight or too slack, and whether the level
+   as a whole is harder than Level 1 by about the right margin.
+
+#### Two Level 1 bugs found while building Level 2
+
+Building Level 2 produced an automated level checker (terrain overlap, floating spikes, rider
+headroom, hazard-vs-platform overlap). Run against **Level 1** it immediately found two faults that
+had survived every visual pass:
+
+| Bug | Why it mattered |
+|---|---|
+| `SawRising` swept **through the ferry deck** (blade 0.15–1.85, deck top 0.98) | a rider was hit with no way to dodge. That is a coin flip, not a timing challenge. The blade now sweeps 3.65–8.35, above a standing rider's head at 2.98, so it only punishes jumping about on the ferry |
+| `SawPatrol` **clipped the pillar stub** at x=186 | a blade buried in scenery. Moved to x=189 |
+
+Moving the saw up then revealed a third: at y=4.5 with 4 units of travel it reached into the
+floating rock at x131–133. Travel cut to 3 and the saw moved to x=128.
+
+> The lesson is the same one the platform sweep taught: anything that *moves* has to be checked
+> along its whole path, against everything else that occupies space. Both levels now pass the
+> checker clean.
+
+> Level 3 is still an untouched copy of the original Level 1 and still contains `CubeObstacle`,
+> so defect #10 remains owed.
+
 ---
 
 ## Deferred manual steps
