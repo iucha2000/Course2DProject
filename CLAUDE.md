@@ -43,6 +43,8 @@ Assets/
   _Archive/       Lecture scratch-work kept for reference; not used by the game
   Animations/     .controller + .anim, one subfolder per subject (Player/, Item/)
   Art/            Sprite sheets. Art/Player/ holds the character sheets
+  Materials/      PhysicsMaterial2D assets. NoFriction (friction 0) is on the player's collider
+                  so holding a direction into a wall does not stick him to it mid-air
   Prefabs/        All gameplay prefabs
   Scenes/         IntroScene, Level1, Level2, Level3
   Scripts/        Gameplay scripts; Scripts/Objects/ for small data-holder components
@@ -84,8 +86,28 @@ Assets/
 - Never mix movement models on one axis. The player moves by **`rb.linearVelocity` in
   `FixedUpdate`** (Unity 6 renamed `velocity` → `linearVelocity`). Do not use `transform.Translate`
   on physics bodies — it tunnels through colliders and breaks moving platforms.
+- **Moving platforms carry riders by _position_, never by parenting, pushing, or velocity.** The
+  platform moves itself and everything registered as standing on it by the same delta, in the same
+  `FixedUpdate`, before the simulation runs (`Platform.CarryRiders`). Position and velocity are
+  independent channels, so the rider's gravity, jumping and knockback stay untouched and no energy
+  is ever stored in the solver. All three alternatives were tried and all three failed:
+  | Approach | Why it fails |
+  |---|---|
+  | `SetParent` | rider is driven twice per step — parent transform *and* its own gravity — so it sinks in and is pushed back out |
+  | let the platform push it | the contact solver decides the rider's velocity, which it still has when the platform stops → pops off the top |
+  | hand the rider the platform's velocity | gravity is applied *after* `FixedUpdate`, and the platform's velocity can only be measured a step late (FixedUpdate order between scripts is undefined) |
+- Physics queries belong in **`FixedUpdate`**, not `Update`. Unity runs all of a frame's
+  `FixedUpdate`s *before* that frame's `Update`, so a ground check done in `Update` is already one
+  frame stale by the time the next physics step reads it.
 - Physics queries **always take a `LayerMask`**. `ProjectSettings/Physics2DSettings.asset` has
   `m_QueriesStartInColliders: 1`, so an unmasked query can hit the caller's own collider.
+- ⚠️ **Never put `Default` (layer 0) in a query mask.** `Physics2DSettings` also has
+  `m_QueriesHitTriggers: 1`, and marker volumes live on `Default` — `CameraBounds` is a
+  *level-sized* trigger. Combined with `m_QueriesStartInColliders`, any query with `Default` in its
+  mask reports a hit everywhere on the map. This has caused two real bugs already: it ate every
+  shuriken in M2, and it froze every enemy in M2.5. `m_ExcludeLayers` on the marker does **not**
+  help — that setting governs collisions, not queries. Solid scenery belongs on `Ground`; marker
+  volumes belong on `Ignore Raycast` (layer 2), which is why `CameraBounds` now sits there.
 - No empty `Start()` / `Update()` stubs — delete them.
 - Comment *why*, not *what*. This is an exam project: a short comment explaining a non-obvious
   Unity behaviour is worth more than a line-by-line narration.

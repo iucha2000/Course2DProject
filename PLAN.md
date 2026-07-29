@@ -10,6 +10,53 @@ exit. Progress and settings persist between sessions.
 
 ---
 
+## ▶ START HERE — current state
+
+*Last updated: end of the M2.5 cleanup session.*
+
+| | |
+|---|---|
+| **Done** | M0 (foundation), M1 (player refactor + combat), M2 (enemies, hazards, health, camera bounds), M2.5 (convention cleanup) |
+| **Next** | **M3 — audio, PlayerPrefs, HUD, pause menu, level flow** |
+| **Playable now** | `Level1` only. Move, jump, dive-stomp, throw shuriken at the mouse, take damage, die and reload, collect coins / cherries / ammo. |
+| **Not built yet** | HUD (hearts, coins, ammo), pause menu, saving, level exit, audio, the actual level designs |
+
+**To resume, just say:** *"Read PLAN.md and continue with M3."*
+
+### Things to hand over at the start of the next session
+- **Close Unity before saying go.** Scene, prefab and controller YAML get edited directly, and the
+  Editor will overwrite those edits when it saves. Commit first too.
+- Nothing is blocked. Audio files are **not** needed — M3 writes the audio system with every play
+  call commented out (see *Deferred manual steps*), so it can be built without any `.wav` files.
+- `Level1` has hand-placed test objects (a Saw, a SpikedEnemy). `Level2` and `Level3` are still plain
+  copies. **Level1 is no longer safe to copy over the others** — they get designed properly in M4.
+
+### Five checklist items are currently owed
+None of these is in shipping code right now. All are on the "must survive" list:
+
+| Item | Lost in | Repaid by |
+|---|---|---|
+| `SetActive` | M1 refactor | **M3** — pause panel / HUD hearts |
+| `SetParent` | M2.5 follow-up (platform stopped parenting the player) | **M3** — runtime heart icons |
+| `Time.deltaTime` | M2.5 follow-up | **M3** — pause menu, vs `Time.unscaledDeltaTime` |
+| `OnCollisionExit2D` | M2.5 follow-up 2 (platform lost its collision callbacks) | **M3** — coyote time |
+| `Transform.Translate` | M1 refactor | **M4** — scrolling background element |
+
+> **Coyote time** is the suggested home for `OnCollisionExit2D`: when the player stops touching the
+> ground, start a short window in which they can still jump. It is a well-known platformer technique,
+> about five lines, genuinely improves the feel, and `OnCollisionExit2D` is the natural trigger — so
+> it repays the checklist item without being a box-ticking exercise.
+
+`Physics2D.Raycast` was in the same position and has already been repaid — M2.5 uses it three times
+in the enemy's ledge, blocked and clearance checks.
+
+### Known placeholders to revisit in M4
+- `CameraBounds` polygon is sized to the current test tilemap, not to a designed level.
+- The three levels are identical copies with no real layout yet.
+- `CubeObstacle.prefab` still points at a sprite inside `Library/PackageCache/` *(defect #10)*.
+
+---
+
 ## Core design decisions
 
 | Decision | Choice | Why |
@@ -43,14 +90,23 @@ The finished game must demonstrate **every** box below.
 - [x] Trigger vs solid colliders
 - [x] `OnCollisionEnter2D` / `OnCollisionExit2D` + **contact normals**
 - [x] `OnTriggerEnter2D`
-- [x] `Physics2D.Raycast` / `RaycastHit2D`
+- [x] `Physics2D.Raycast` / `RaycastHit2D` — *M1 removed the player's raycast ground check;
+      **restored in M2.5** as the enemy's ledge check (`Enemy.HasGroundAhead`)*
 - [x] `AddForce` + `ForceMode2D.Impulse`, `linearVelocity`
 - [x] MonoBehaviour lifecycle, Inspector-serialized fields
 - [x] `GetComponent<T>`, `CompareTag`, `FindGameObjectWithTag`
-- [x] `Transform.Translate` / `SetParent`, `Time.deltaTime`
+- [ ] `Transform.Translate` / `SetParent`, `Time.deltaTime` — ⚠️ **all three are currently missing
+      from shipping code.** `Translate` went in the M1 player refactor; `SetParent` and
+      `Time.deltaTime` went in the M2.5 follow-up when the moving platform stopped parenting the
+      player. **Owed by M3** — `SetParent` for HUD heart icons created at runtime, `Time.deltaTime`
+      for the pause menu (contrasted against `Time.unscaledDeltaTime`, which is the natural way to
+      show what `timeScale = 0` actually does). **Owed by M4** — `Translate` on a scrolling
+      background element
 - [x] Coroutines — stored handle + `StopCoroutine`, `WaitForSeconds`, `yield return null`
 - [x] `Vector2.Distance`, `Mathf.Abs`, `MoveTowards`
-- [x] `Dictionary<string,int>`, `SetActive`
+- [ ] `Dictionary<string,int>`, `SetActive` — ⚠️ `Dictionary` is fine (`Player.cs`), but
+      **`SetActive` no longer exists in shipping code**. **Owed by M3** — the pause menu panel
+      and the HUD heart icons both need it
 - [x] AI state machine with hysteresis
 - [x] Legacy Input Manager — `GetAxis`, `GetKeyDown`
 - [x] Orthographic camera
@@ -66,10 +122,10 @@ The finished game must demonstrate **every** box below.
 ### Being added
 - [x] **Physics layers + Layer Collision Matrix** — M0
 - [x] **Sorting Layers** (Background / Default / Foreground) — M0
-- [ ] **`LayerMask` in physics queries** — M1
-- [ ] **`Instantiate` / `Destroy`** — M1
-- [ ] **Player offense** (stomp + shuriken) — M1
-- [ ] **Prefab Variants** (SpikyEnemy) — M2
+- [x] **`LayerMask` in physics queries** — M1 (`Player.CheckGround`, `Enemy.HasGroundAhead`)
+- [x] **`Instantiate` / `Destroy`** — M1 (shuriken, ammo drop)
+- [x] **Player offense** (dive-stomp + shuriken) — M1
+- [x] **Prefab Variants** (`SpikedEnemy`) — M2
 - [ ] **PlayerPrefs** (`SetInt`/`GetInt`, `SetFloat`/`GetFloat`, `DeleteKey`) — M3
 - [ ] **Audio** (`AudioSource`, `AudioClip`, `PlayOneShot`, music vs SFX, volume) — M3 structure,
       **clips wired by the user later** (see Deferred manual steps)
@@ -200,8 +256,14 @@ colour while vulnerable — that colour change is the player's only telegraph, s
 warning. You can always eventually kill one with a well-timed dive, but the 1-in-4 window plus the
 dive requirement keeps ammo clearly the easier answer.
 
-> Note: `SpikyEnemy.prefab` (hand-written) was replaced by an Editor-made **`Spiked Enemy.prefab`**.
-> Prefab variant YAML needs a generated anchor id, not `&100100000` — see `CLAUDE.md`.
+> Note: `SpikyEnemy.prefab` (hand-written) was replaced by an Editor-made variant, renamed to
+> **`SpikedEnemy.prefab`** in M2.5. Prefab variant YAML needs a generated anchor id, not
+> `&100100000` — see `CLAUDE.md`.
+
+> Correction (M2.5 audit): the bullet above originally said the Spiked Enemy was "slower but with a
+> longer chase range". The actual prefab overrides **`moveSpeed: 6`** (*faster* than the base 4) and
+> does **not** override `chaseRange` at all. That was a playtest tuning decision, so the asset was
+> left alone and this text corrected to match it.
 
 #### M2 follow-up 2 — two bugs found in playtest
 
@@ -221,6 +283,150 @@ requested another dive, and `Dive()` overwrote the `+11` bounce with `-20`. Divi
 **fresh key press** rather than a held key. The press is detected before the hit-stun early-return,
 otherwise releasing the key while stunned would go unnoticed and swallow the next dive.
 
+### M2.5 — Convention cleanup ✅ DONE
+A short audit pass before M3, fixing things that had drifted from `CLAUDE.md` and from this file.
+
+**1. Enemies no longer move by writing `transform.position`.** `Enemy.prefab` has a **Dynamic**
+Rigidbody2D, and `Enemy.cs` was assigning `transform.position` every `Update`. That is the exact
+anti-pattern M1 removed from the player: it teleports the body past the solver, so the enemy can end
+up overlapping the tilemap and get shoved back out, which reads as jitter. `Enemy` now sets
+`rb.linearVelocity` in `FixedUpdate`, the same movement model as `Player`.
+
+**2. Enemies stop at ledges — and this is where `Physics2D.Raycast` comes back.**
+`Enemy.HasGroundAhead` casts a short ray straight down from a point in front of the enemy's feet,
+masked to `Ground`. No hit means the floor ends there, so the enemy holds position instead of
+walking off. It still turns to face the player while waiting at the edge, so it reads as deliberate
+rather than stuck. This makes platform layouts in M4 actually designable.
+
+**3. Kinematic movers use `MovePosition`.** `PatrolMover` (saw) and `Platform` both moved a Kinematic
+Rigidbody2D by transform, which teleports the collider instead of sweeping it through the physics
+system. Both now use `rb.MovePosition` on `WaitForFixedUpdate`.
+
+**4. `Platform` only carries the player when they are on top.** It used to parent the player on *any*
+contact, so brushing the side of the platform in mid-air dragged them along. Now gated on the
+contact normal (`normal.y < -0.5f` — the normal points from the other object back towards the
+platform, so the player being above gives a downward normal).
+
+**5. Style fixes.** Deleted the empty `Update()` stub in `GameCanvasHandler`. `Platform` and
+`PatrolMover` converted to `[SerializeField] private` + `[RequireComponent]`.
+
+**6. Renames** to match the `CLAUDE.md` PascalCase rule: `Spiked Enemy.prefab` → `SpikedEnemy.prefab`,
+`Cube Obstacle.prefab` → `CubeObstacle.prefab` (file, `.meta`, and the `m_Name` overrides in all
+three levels). GUIDs preserved, so every scene reference survived.
+
+**7. Player rigidbody** set to `Interpolate` + `Continuous` collision detection — the camera tracks
+the player, so interpolation is a free smoothness win, and the dive moves at 20 u/s.
+
+**Acceptance:** enemies chase smoothly without jitter and stop at platform edges; the saw and the
+moving platform still move; riding the platform still works; nothing in the Console.
+
+#### M2.5 follow-up (after playtest) — two real bugs
+
+**1. The player juggled on a descending platform.** Parenting was the cause, and it had been the
+cause all along — M2.5 only made it more visible by switching the player to `Interpolate`.
+
+Parenting a **Dynamic** Rigidbody2D to a moving transform drives it *twice* per physics step: once
+because the parent transform drags the child's world position down by Δ, and again because the
+player's own gravity integration adds its own fall on top. The player therefore ends each step
+buried inside the platform, gets depenetrated back out, and the cycle repeats — which reads as
+bouncing. It is worst on the way down, because on the way up gravity happens to cancel part of it.
+
+The fix is to stop moving the player by two mechanisms at once. `Platform` now measures its own
+velocity and hands it to the player; `Player.Move` adds it:
+
+| | Before | After |
+|---|---|---|
+| Horizontal carry | `transform.SetParent(platform)` | `velocity.x += carrier.Velocity.x` |
+| Descending | player free-falls, re-lands every step | `velocity.y` matched to the platform's |
+| Who owns the player's position | platform **and** the player's own body | the player's body alone |
+
+`Platform` still decides *whether* the player is riding, because it is the side that can see the
+contact normal and tell "standing on top" from "brushing a side". That check moved from
+`OnCollisionEnter2D` to **`OnCollisionStay2D`**: sliding off the side onto the top never raises a
+second Enter, so an Enter-only test could miss the moment the player actually gets on.
+
+> ⚠️ **This removed the last `SetParent` and the last `Time.deltaTime` from the project.**
+> Both are on the "must survive" checklist and are now owed by M3 — see the checklist above.
+
+**2. Enemies were stopped by a knee-high cube.** The M2.5 ledge check made them cautious but not
+capable: anything solid in front simply blocked them. They now **jump obstacles they can actually
+clear**, using two forward rays:
+
+| Ray | Height above feet | Meaning |
+|---|---|---|
+| Blocked | +0.1 | something is in the way |
+| Clearance | `maxJumpableHeight` (1.5) | if this one is **clear**, it is short enough to hop |
+
+Both blocked = a wall, so the enemy stops instead of head-butting it forever. Blocked low but clear
+high = a step, so it jumps. `jumpForce` 10 against `gravityScale` 2 reaches about 2.5 units, so the
+1.5 it is willing to attempt has a comfortable margin — it never commits to a jump it cannot make.
+
+The three checks share one **`solidLayers`** mask instead of the old `groundLayer`, because
+`CubeObstacle` sits on **Default**, not `Ground` — a Ground-only mask cannot see the very obstacle
+this is meant to solve. The mask is Ground + Default (`m_Bits: 65`).
+
+While airborne the enemy keeps the direction it jumped in and re-runs none of the three checks,
+otherwise it would stall halfway over the obstacle.
+
+> Note: the enemy has no jump animation — `Enemy.controller` only has Idle and Run. It slides
+> through the air in its run pose. Adding a jump state means giving the controller a Bool parameter
+> and reusing `Player_Jump.anim`; say the word if it looks bad in motion.
+
+#### M2.5 follow-up 2 — three bugs from the second playtest
+
+**1. Enemies stopped moving entirely.** A self-inflicted regression from follow-up 1. `solidLayers`
+was set to Ground **+ Default** so the enemy could see `CubeObstacle`, which sat on Default. But
+`CameraBounds` is a **level-sized trigger that also sits on Default**, and `Physics2DSettings` has
+both `m_QueriesHitTriggers: 1` and `m_QueriesStartInColliders: 1`. So every enemy query started
+inside that trigger and reported a hit:
+
+| Check | Result | Consequence |
+|---|---|---|
+| `IsBlockedAhead` | always true | something is always in the way |
+| `CanClear` | always false | and it is always too tall to jump |
+
+…which lands on `moveDirection = 0f` every frame. The enemy was frozen, not failing to chase.
+
+Fixed at the source rather than by special-casing:
+- `solidLayers` back to **Ground only** (`m_Bits: 64`), with a comment on the script field saying
+  why Default must never go in it.
+- **`CubeObstacle` moved to the `Ground` layer**, which is where a solid piece of scenery belonged
+  anyway — that is what `Ground` means in `CLAUDE.md`.
+- **`CameraBounds` moved to layer 2 (`Ignore Raycast`)** in all three levels. Its `m_ExcludeLayers`
+  already kept it out of *collisions*, but that does nothing for *queries*. This is the second bug
+  that shape has caused (the first ate every shuriken in M2), so it is now off Default for good.
+
+**2. The player stuck to walls when jumping into them.** Nothing to do with the platform work: the
+project has no default physics material (`m_DefaultMaterial: {fileID: 0}`), so every collider was
+using Unity's built-in **friction of 0.4**. Holding a direction into a wall while airborne generated
+enough friction against the tilemap to hold the player up.
+
+Added `Assets/Materials/NoFriction.physicsMaterial2D` (friction 0, bounciness 0) on the player's
+`CapsuleCollider2D`. Zero friction is safe here precisely because horizontal movement is set as a
+velocity every `FixedUpdate` rather than driven by friction — nothing about walking or standing
+depends on it.
+
+**3. The player still bounced on the platform.** The velocity carry from follow-up 1 was correct in
+principle but almost certainly never ran: it depended on `Platform` reading a contact normal to tell
+"on top" from "at the side", and which way that normal points depends on which of the two colliders
+Unity reports first — the one thing in follow-up 1 that could not be verified without playing.
+
+Rather than guess the comparison a second time, the question is now answered by something that
+already knows: **`Player.CheckGround` reports what is under the player's feet**, so it sets `carrier`
+directly. One source of truth, no normals involved, and the 0.15-unit ground-check radius gives
+tolerance that a hard contact test does not.
+
+Two supporting fixes:
+- **Gravity is now subtracted in advance** when matching a descending platform. Unity applies gravity
+  during the physics step *after* `FixedUpdate`, so setting velocity to exactly the platform's speed
+  still ended the step slightly faster than it — sinking in and being pushed back out every step.
+- **The platform's Rigidbody2D is now `Interpolate`**, matching the player. A rider rendered on the
+  interpolated clock and a carrier rendered on the fixed clock drift apart visually between physics
+  steps, which looks like bouncing even when the physics is correct.
+
+`Platform` is now purely a mover that publishes its own velocity — it has no collision callbacks at
+all, which is what cost the project its last `OnCollisionExit2D` (see the owed table at the top).
+
 ### M3 — Audio, PlayerPrefs, HUD, pause, flow
 > **Not blocked on audio files.** `AudioManager` and the volume plumbing get built in full, but every
 > individual *play* call at its call site is written as a **commented line** with a `// TODO(audio):`
@@ -228,7 +434,14 @@ otherwise releasing the key while stunned would go unnoticed and swallow the nex
 - [ ] `AudioManager.cs` — `DontDestroyOnLoad` singleton, music + SFX sources, `PlayOneShot`
 - [ ] `SaveSystem.cs` — static wrapper over `PlayerPrefs` (unlock level, volumes, reset)
 - [ ] HUD rework — **separate** TMP objects for the pickup banner and the counters *(defect #3)*,
-      plus hearts and ammo
+      plus hearts and ammo. *(Confirmed still live in the M2.5 audit: `itemNameText` and
+      `collectedCountText` point at the **same** TMP object in all three levels, so the banner and
+      the counter overwrite each other.)* Also drop `GameCanvasHandler`'s public component refs in
+      favour of resolving them in code, per `CLAUDE.md`
+- [ ] **Three owed checklist items must land here** *(see the checklist above)*:
+      **`SetActive`** (pause panel / HUD hearts), **`SetParent`** (heart icons instantiated at
+      runtime under a hearts container), **`Time.deltaTime`** (pause menu, shown against
+      `Time.unscaledDeltaTime` so `timeScale = 0` is demonstrated rather than just used)
 - [ ] `PauseMenu.cs` — Esc, `Time.timeScale = 0`, Resume / volume sliders / Quit to Menu
 - [ ] `LevelExit.cs` — exit trigger → save unlock → load next scene
 - [ ] Intro screen — Continue vs New Game driven by saved unlock, volume sliders
@@ -241,7 +454,10 @@ finishing a level unlocks the next.
       tilemap cell coordinates, the specific `Terrain (16x16)_N` tile for every cell, exact prefab
       world coordinates, and a per-section note on why it plays well
 - [ ] User paints the tilemaps; prefabs placed via scene YAML from the spec
-- [ ] `Cube Obstacle.prefab` sprite repointed off `Library/PackageCache/` *(defect #10)*
+- [ ] `CubeObstacle.prefab` sprite repointed off `Library/PackageCache/` *(defect #10)*
+- [ ] **Scrolling background element using `Transform.Translate`** — repays the checklist item lost
+      in the M1 player refactor. A non-physics decorative object is the honest place for `Translate`,
+      since the whole reason it left `Player` is that it must not be used on a Rigidbody2D
 - [ ] Balance pass from playtest notes
 
 **Acceptance:** 8–12 min playtime, every checklist box ticked, playable start to finish.
@@ -295,7 +511,7 @@ Running list. Newest section at the bottom.
 
 ### After M2
 1. **Open Unity and check the Console.**
-2. **⚠️ Highest-risk item — open `Assets/Prefabs/SpikyEnemy.prefab`.** It is a **prefab variant**,
+2. **⚠️ Highest-risk item — open `Assets/Prefabs/SpikedEnemy.prefab`.** It is a **prefab variant**,
    written by hand as a `PrefabInstance` pointing at `Enemy.prefab`. It should open showing a purple
    enemy with `Can Be Stomped` unticked, and the Inspector header should say it is a variant.
    **If it fails to open or looks wrong, delete it and make one in the Editor instead:** right-click
@@ -314,6 +530,217 @@ Running list. Newest section at the bottom.
    - drag a **`SpikyEnemy`** in → jumping on it should hurt you rather than kill it; a shuriken kills it
    - walk to the far left and right edges → the camera should stop instead of showing empty space
 6. **Report feel:** heart count, knockback strength, saw size, whether the camera bounds feel right.
+
+### After M2.5
+1. **Open Unity and check the Console.** Two prefabs were renamed on disk and several scripts
+   changed shape, so this is the reimport that proves it.
+2. **⚠️ Highest-risk item — select `Assets/Prefabs/Enemy.prefab` and check the `Enemy` component's
+   `Ground Layer` field shows `Ground` ticked.** Same hand-written `m_Bits` format as the Player's
+   was in M1. **If it reads `Nothing`, set it to `Ground` manually** — otherwise the ledge check
+   thinks there is never any floor ahead and the enemy will refuse to move at all.
+3. Confirm the Project window shows **`SpikedEnemy`** and **`CubeObstacle`** (no spaces), that
+   `SpikedEnemy` still opens as a variant of `Enemy`, and that the `Level1` Hierarchy still lists
+   both with no "missing prefab" icon.
+4. **Playtest `Level1` and check the four behaviours that changed:**
+   - **Enemy chase** — should be smooth, no jitter or shuddering when it reaches you or presses
+     against a wall. This is the main thing M2.5 fixed.
+   - **Enemy ledge check** — walk the enemy toward the end of a platform. It should stop at the
+     edge, still facing you, rather than walking off. Select it in the Scene view while playing
+     and you will see the yellow gizmo ray it is using.
+   - **Moving platform** — still moves, and still carries you when you stand on it.
+   - **Saw** — still patrols when its `Patrol Mover → Offset` is non-zero.
+5. **Report feel:** enemy speed now that it is velocity-driven, and whether the ledge stop distance
+   (`Ledge Check Ahead`, default 1) looks right — too small and it walks half off the edge, too
+   large and it stops well short.
+
+### After the M2.5 follow-up
+1. **⚠️ Highest-risk item — select `Assets/Prefabs/Enemy.prefab` and check `Solid Layers` shows
+   `Default` *and* `Ground` both ticked.** The field was renamed from `Ground Layer`, so the old
+   value does not carry over and this was hand-written as `m_Bits: 65`. **If it reads `Nothing`,
+   tick `Default` and `Ground` manually** — otherwise the enemy sees no floor anywhere and will not
+   move at all.
+2. **Platform, descending.** Stand on the moving platform and ride it *down*. It should carry you
+   smoothly with no bouncing or juggling. Then ride it *up*, and walk left/right while riding —
+   your walking speed should feel normal, not doubled or cancelled.
+3. **Jump off the platform mid-travel** — you should get a normal jump, not a stunted or boosted one.
+4. **Enemy vs the cube.** Stand on the far side of `CubeObstacle` so the enemy chases you into it.
+   It should hop over instead of grinding against it. Select the enemy while playing to see the
+   three gizmo rays: yellow = ledge, red = blocked, green = clearance.
+5. **Enemy vs a real wall.** Stand behind a tall bit of tilemap. The enemy should stop in front of
+   it rather than jumping repeatedly into it.
+6. **Report:** whether the hop height looks right (`Jump Force` 10, `Max Jumpable Height` 1.5), and
+   whether the enemy sliding through the air in its run pose looks acceptable or wants a jump
+   animation.
+
+#### M2.5 follow-up 4 — moving platforms reworked
+
+Follow-ups 1–3 all failed, and they failed for the same reason: **they all carried the rider by
+velocity.** Each fix removed one symptom and exposed the next, which is the signature of treating
+symptoms rather than the cause. Velocity carrying cannot be made exact, for three independent
+reasons:
+
+| # | Problem | Why it cannot be patched away |
+|---|---|---|
+| 1 | A rider that is **pushed** has its velocity chosen by the contact solver | it still holds that velocity when the platform stops, so it pops off the top |
+| 2 | A rider that is **given** the platform's velocity then has gravity applied | the engine integrates gravity *after* `FixedUpdate`, so whatever we set is immediately wrong |
+| 3 | The platform's velocity can only be **measured a step late** | the order of `FixedUpdate` between two scripts is undefined, so the rider may read it before the platform has updated it |
+
+**The rework: carry by position instead.** Position and velocity are independent channels, so this
+sidesteps all three at once. Every physics step, `Platform` moves itself *and* everything standing
+on it by the same delta, before the simulation runs:
+
+```csharp
+rb.MovePosition(currentPosition);   // us
+foreach (rider) rider.position += delta;   // and everything riding us, by the same amount
+```
+
+Because the rider is moved by exactly the platform's own delta, it ends the step in the same place
+*relative to the platform* that it started. Nothing overlaps, so the solver has nothing to correct
+and never generates an impulse — which is what the bounce was.
+
+**What this deleted.** The measure of a correct design here is how much it removed:
+
+| Removed | Was there to work around |
+|---|---|
+| `platformStickSpeed` | riders floating instead of settling |
+| gravity pre-compensation | gravity being applied after `FixedUpdate` |
+| `isJumping` flag | the platform swallowing a jump on its first frame |
+| `velocity.x += carrier.Velocity.x` | horizontal carry |
+| `Platform.Velocity` (now `Delta`) | being read a step late |
+
+`Player.Move` is one line again and contains nothing about platforms at all. The player does not
+know it is being carried, which is exactly right — its gravity, jumping, dive and knockback are
+untouched by the platform system, so none of them can be broken by it.
+
+**Other structural changes:**
+- `Platform` moves in **`FixedUpdate`, not a coroutine**, so its own movement and the rider carry
+  are one atomic operation. It tracks `currentPosition` itself rather than reading the body back,
+  so a step never depends on what the engine did with the previous one.
+- **Riders register** (`AddRider` / `RemoveRider`) from the player's ground check, which already
+  knows what is underfoot. Registration lag is harmless — unlike velocity lag — because the platform
+  is the one applying the movement. `Player.OnDisable` deregisters so level reloads leave nothing
+  dangling.
+- The rider list is `List<Rigidbody2D>`, so enemies or crates can ride a platform later with no
+  change to `Platform`.
+- **`Assets/Prefabs/Platform.prefab` created**, since these are going to be placed a lot. The
+  existing hand-built platforms in the three levels are left alone; M4 replaces them with instances.
+
+#### M2.5 follow-up 3 — the platform bounce, attempt 3 (superseded by follow-up 4)
+
+The previous two attempts treated symptoms. The playtest detail that identified the real cause was
+**"when it stops going up, the character does a little bounce"** — that is stored energy, and it can
+only be stored if something other than the player is deciding the player's vertical velocity.
+
+**Root cause.** Both directions were the same bug:
+
+| Direction | What was happening | Result |
+|---|---|---|
+| Up | the platform **pushed** the player; the contact solver decided the upward velocity | the player still had that velocity when the platform stopped, so it popped off the top |
+| Down | the player fell at *gravity's* rate, not the platform's | a gap opened underneath and the player landed on it again |
+
+**Fix: the player owns its vertical velocity while riding.** The platform is treated as a frame of
+reference — walking speed is relative to it, and its motion is added rather than reacted to:
+
+```csharp
+velocity.x += carrierVelocity.x;
+velocity.y  = carrierVelocity.y - gravityThisStep - platformStickSpeed;
+```
+
+Three parts, each doing one job:
+- **`carrierVelocity.y`** — move with the platform instead of being moved by it. Nothing is ever
+  stored in the solver, so there is nothing to release when the platform stops.
+- **`- gravityThisStep`** — Unity applies gravity during the physics step *after* `FixedUpdate`, so
+  it is taken off in advance. Without this the player ends every step slightly faster than the
+  platform, sinks in, and is pushed back out.
+- **`- platformStickSpeed`** (1 u/s) — a gentle constant press into the surface. Matching exactly
+  would leave the player free-floating at whatever gap it happened to have; this settles it. It is
+  the same resting contact as standing on ordinary ground.
+
+**Supporting fixes:**
+- **`isJumping` flag**, set on jump and on stomp bounce, cleared on landing. Without it the platform
+  logic would overwrite a jump on the frame it starts.
+- **The ground check moved from `Update` to `FixedUpdate`.** It is a physics query, and Unity runs a
+  frame's `FixedUpdate`s *before* its `Update`, so the platform logic had been reading last frame's
+  answer about what the player was standing on.
+- **`IsFalling` now requires `!isGrounded`.** Riding a platform down is a genuinely negative
+  velocity, so without this the fall animation played the whole way down.
+
+**Platform reworked for heavy use.** Since the game will use static, moving, disappearing and
+damaging platforms, `endPosition` (an absolute world position) was the wrong knob — duplicate a
+platform and it flies back to the original's destination; leave it unset and it flies to world
+origin. It is now a **relative `offset`**, matching the convention `PatrolMover` already used, and
+**zero means static** so one component covers both cases. The variants compose rather than subclass:
+
+| Variant | How |
+|---|---|
+| Static | `offset` zero, or just plain Ground-layer geometry |
+| Moving | set `offset` |
+| Damaging | add the existing `Hazard` component |
+| Disappearing | add a component that switches collider + renderer off *(M4)* |
+
+`Platform.Velocity` is *measured* from the body's actual movement rather than derived from
+`moveSpeed`, so it stays correct while paused at each end — and would still be correct if something
+other than `Platform` were doing the moving.
+
+### After M2.5 follow-up 2
+1. **Open Unity and check the Console.** A new folder `Assets/Materials/` and a new asset
+   `NoFriction.physicsMaterial2D` were written by hand, so confirm the asset imports and shows
+   `Friction 0` / `Bounciness 0` in the Inspector.
+2. **⚠️ Highest-risk items — two hand-written references:**
+   - `Assets/Prefabs/Player.prefab` → `CapsuleCollider2D` → **`Material` should say `NoFriction`**.
+     If it says `None`, drag `Assets/Materials/NoFriction` onto it. Without it the wall-sticking
+     comes straight back.
+   - `Assets/Prefabs/Enemy.prefab` → **`Solid Layers` should now be `Ground` only** (it was
+     briefly Ground + Default, which is what froze the enemies). If `Default` is still ticked,
+     untick it.
+3. Confirm `CubeObstacle` is on the **`Ground`** layer and `CameraBounds` is on **`Ignore Raycast`**
+   in all three levels.
+4. **Playtest the three fixes:**
+   - **Enemies chase again**, and hop over the cube.
+   - **Jump into a wall while holding the direction into it** — you should slide down normally,
+     not stick.
+   - **Ride the platform down** — no bouncing, no juggling. Ride it up, walk while riding, and
+     jump off mid-travel.
+5. **Also re-check, because zero friction touches everything the player stands on:** that you can
+   still stand still on a slope-free floor without drifting, and that being knocked back by an enemy
+   still stops rather than sliding forever. Both should be unaffected — movement is velocity-driven
+   — but they are the two places friction could have mattered.
+
+### After M2.5 follow-up 4
+1. **Nothing to wire.** No new serialized fields, and `platformStickSpeed` was removed from the
+   Player prefab. Just check the Console and that `Platform.prefab` opens.
+2. **Ride the platform through a full cycle**, checking each phase separately:
+   - going **up**, and the moment it **stops at the top** — the bounce
+   - going **down** — you should descend *with* it, not fall behind and land on it
+   - **paused** at either end
+   - **walking left and right while riding**, in every phase
+   - **jumping off** while it moves up, and again while it moves down
+   - **landing on it** from a height while it is moving
+3. **Re-check the things that were previously entangled with the platform code and now are not** —
+   normal jump height, dive-stomp bounce off an enemy, and knockback. All three used to share the
+   vertical-velocity path that the platform logic was overriding; none of them do any more.
+4. **`Platform.prefab` is new.** Drag one into `Level1` and set its `Offset` to something like
+   `(4, 0)` to confirm a horizontally-moving platform carries you sideways too — that path was
+   never actually tested, since the existing platform only moves vertically.
+
+### After M2.5 follow-up 3 *(superseded — follow-up 4 replaced this work)*
+1. **The platform is the whole point of this pass.** Ride it through a full cycle and check each
+   phase separately, since each was its own failure mode:
+   - going **up**, then the moment it **stops at the top** — this is where the bounce was
+   - going **down** — you should descend with it, not fall behind and re-land
+   - **paused** at either end — you should just stand there
+   - **walking left and right while riding** in every phase
+   - **jumping off** while it is moving up, and again while it is moving down
+   - **landing on it** from a height while it is moving
+2. **Check the animation while riding down** — the player should look like they are standing, not
+   falling.
+3. ⚠️ **The platform's field changed from `End Position` to `Offset`, and it is now relative.**
+   Select the `Platform` in `Level1` and confirm `Offset` reads `(0, 2.25)` and that it travels the
+   same path as before. If it reads `(0, 0)` the field did not carry over — set it to `(0, 2.25)`.
+4. **Tuning knob:** `Player → Platform Stick Speed` (default 1). If landing on a platform feels
+   heavy, lower it; if the player ever looks like it is floating a hair above one, raise it.
+5. **Confirm nothing else regressed** — normal jumping height, dive-stomp bounce off an enemy, and
+   knockback all touch the same vertical velocity path that this pass rewrote.
 
 ---
 

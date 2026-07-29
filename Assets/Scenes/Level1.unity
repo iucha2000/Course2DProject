@@ -137,7 +137,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -5681804720173796980, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
       propertyPath: stompBounceForce
-      value: 8
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: -5681804720173796980, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
+      propertyPath: invulnerabilityDuration
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 404982605957317318, guid: a4a53825b1d0c394aba604e60cf53864, type: 3}
       propertyPath: m_Name
@@ -306,8 +310,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 527b50e1216dc234ea8a472f57fbdb18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Platform
-  endPosition: {x: 6.73, y: 3.67, z: 0}
+  offset: {x: 0, y: 2.25}
   moveSpeed: 5
+  pauseAtEnds: 1
 --- !u!50 &125149249
 Rigidbody2D:
   serializedVersion: 5
@@ -331,7 +336,7 @@ Rigidbody2D:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
@@ -480,7 +485,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8748353731639589411, guid: 48781687fec254f46b0fe794e293d9e4, type: 3}
       propertyPath: m_Name
-      value: Cube Obstacle
+      value: CubeObstacle
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -825,7 +830,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8619166013454541140, guid: 779fbbdb917518c429f84db1170245f4, type: 3}
       propertyPath: m_Name
-      value: Spiked Enemy
+      value: SpikedEnemy
       objectReference: {fileID: 0}
     - target: {fileID: 8619166013454541141, guid: 779fbbdb917518c429f84db1170245f4, type: 3}
       propertyPath: m_LocalPosition.x
@@ -4127,7 +4132,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1553094827361029476}
   - component: {fileID: 1553094827361029477}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: CameraBounds
   m_TagString: Untagged
   m_Icon: {fileID: 0}

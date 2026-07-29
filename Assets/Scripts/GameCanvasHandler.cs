@@ -20,11 +20,6 @@ public class GameCanvasHandler : MonoBehaviour
         collectedCountText.text = "";
     }
 
-    void Update()
-    {
-        
-    }
-
     public void DisplayItemInfo(string itemName, Sprite itemSprite)
     {
         if (hideCoroutine != null)

@@ -56,6 +56,10 @@ public class Player : MonoBehaviour
     private bool isGrounded;
     private bool isDiving;
 
+    // The moving platform we are currently standing on, or null. Filled in by CheckGround,
+    // since the ground check already has to find out what is under our feet.
+    private Platform carrier;
+
     // Two separate ideas that are easy to confuse:
     // isHurt        - the player has lost control for a moment (hit stun)
     // isInvulnerable - the player cannot be hurt again yet (invulnerability frames)
@@ -82,6 +86,23 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        ReadInput();
+
+        animator.SetBool("IsGrounded", isGrounded);
+
+        // Falling means airborne and heading down. The grounded test matters now that riding
+        // a descending platform gives a real negative velocity while standing perfectly still
+        // on it - without it, the fall animation would play the whole way down.
+        animator.SetBool("IsFalling", !isGrounded && rb.linearVelocity.y < -0.1f);
+        animator.SetFloat("Run", Mathf.Abs(horizontalInput));
+    }
+
+    private void FixedUpdate()
+    {
+        // The ground check is a physics query, so it runs on the physics clock. Doing it in
+        // Update left it a frame stale, because Unity runs every FixedUpdate for a frame
+        // before that frame's Update - so the platform logic below was reading last frame's
+        // answer about what we were standing on.
         isGrounded = CheckGround();
 
         if (isGrounded)
@@ -90,15 +111,6 @@ public class Player : MonoBehaviour
             isDiving = false;
         }
 
-        ReadInput();
-
-        animator.SetBool("IsGrounded", isGrounded);
-        animator.SetBool("IsFalling", rb.linearVelocity.y < -0.1f);
-        animator.SetFloat("Run", Mathf.Abs(horizontalInput));
-    }
-
-    private void FixedUpdate()
-    {
         // While hurt the player keeps the knockback velocity instead of being driven
         // by input, otherwise Move() would overwrite the knockback on the very next step.
         if (!isHurt)
@@ -177,6 +189,10 @@ public class Player : MonoBehaviour
     {
         // Setting the velocity directly, instead of moving the transform, keeps the player
         // inside the physics simulation so it cannot tunnel through the tilemap collider.
+        //
+        // Note there is nothing about moving platforms here. A platform we are standing on
+        // moves us by position in its own FixedUpdate, which leaves our velocity - and with it
+        // our gravity, jumping and knockback - completely untouched. See Platform for why.
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
     }
 
@@ -197,7 +213,44 @@ public class Player : MonoBehaviour
         // reliable: Physics2D has "Queries Start In Colliders" enabled project-wide, so
         // without a mask this could hit the player's own collider and always say grounded.
         Vector2 feet = new Vector2(capsule.bounds.center.x, capsule.bounds.min.y);
-        return Physics2D.OverlapCircle(feet, groundCheckRadius, groundLayer) != null;
+        Collider2D ground = Physics2D.OverlapCircle(feet, groundCheckRadius, groundLayer);
+
+        // The ground check is already the one thing that knows what is under our feet, so it
+        // is also what decides which platform we are riding.
+        SetCarrier(ground != null ? ground.GetComponent<Platform>() : null);
+
+        return ground != null;
+    }
+
+    /// <summary>
+    /// Registers or deregisters us with the platform we are standing on. Riding is a
+    /// registration rather than something we read each frame: the platform moves us itself,
+    /// in the very step it moves in, so we can never act on a stale idea of where it is.
+    /// </summary>
+    private void SetCarrier(Platform platform)
+    {
+        if (platform == carrier)
+        {
+            return;
+        }
+
+        if (carrier != null)
+        {
+            carrier.RemoveRider(rb);
+        }
+
+        carrier = platform;
+
+        if (carrier != null)
+        {
+            carrier.AddRider(rb);
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Do not leave a dangling entry in a platform's rider list when the level reloads.
+        SetCarrier(null);
     }
 
     private void OnTriggerEnter2D(Collider2D other)

@@ -1,14 +1,43 @@
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(CapsuleCollider2D))]
 public class Enemy : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed = 4f;
     public float chaseRange = 5f;
     public float giveUpRange = 8f;
+    [Tooltip("How close to the target counts as arrived. Stops the enemy twitching on the spot.")]
+    [SerializeField] private float stopDistance = 0.05f;
+
+    [Header("What counts as solid")]
+    // Keep this to Ground only. It must never include Default: CameraBounds is a level-sized
+    // trigger sitting on Default, and Physics2D has both "Queries Hit Triggers" and "Queries
+    // Start In Colliders" enabled, so every check below would report a hit everywhere and the
+    // enemy would freeze on the spot. Solid scenery belongs on Ground instead.
+    [Tooltip("Everything this enemy can stand on or is blocked by. Ground only.")]
+    [SerializeField] private LayerMask solidLayers;
+    [SerializeField] private float groundCheckRadius = 0.15f;
+
+    [Header("Ledge check")]
+    [Tooltip("How far in front of the enemy to look for floor. Must reach past its own body.")]
+    [SerializeField] private float ledgeCheckAhead = 1f;
+    [Tooltip("How far down to look. Anything deeper than this counts as a drop.")]
+    [SerializeField] private float ledgeCheckDepth = 1.2f;
+
+    [Header("Jumping over obstacles")]
+    [SerializeField] private float jumpForce = 10f;
+    [Tooltip("Tallest thing the enemy will try to hop over, measured up from its feet. " +
+             "Anything taller is treated as a wall and it stops instead of head-butting it.")]
+    [SerializeField] private float maxJumpableHeight = 1.5f;
+    [Tooltip("How far in front of its body to look for something blocking the way.")]
+    [SerializeField] private float obstacleCheckDistance = 0.35f;
+    [Tooltip("Stops the enemy re-jumping the instant it lands if it did not quite clear something.")]
+    [SerializeField] private float jumpCooldown = 0.5f;
 
     [Header("Combat")]
     [Tooltip("Whether the player can currently kill this by diving onto it.")]
@@ -25,18 +54,29 @@ public class Enemy : MonoBehaviour
              "needs to be obviously different from the normal colour.")]
     [SerializeField] private Color vulnerableColor = new Color(1f, 0.9f, 0.35f, 1f);
 
+    private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Animator animator;
+    private CapsuleCollider2D capsule;
 
     private Transform player;
     private Vector3 startPosition;
     private bool isChasing;
     private Color armouredColor;
 
+    // Decided in Update from the AI state, applied in FixedUpdate as velocity.
+    // -1 = left, 0 = stand still, 1 = right.
+    private float moveDirection;
+    private bool isGrounded;
+    private bool jumpRequested;
+    private float nextJumpTime;
+
     private void Awake()
     {
+        rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         animator = GetComponent<Animator>();
+        capsule = GetComponent<CapsuleCollider2D>();
     }
 
     private void Start()
@@ -77,8 +117,12 @@ public class Enemy : MonoBehaviour
 
     private void Update()
     {
+        isGrounded = IsGrounded();
+
         if (player == null)
         {
+            moveDirection = 0f;
+            animator.SetFloat("Run", 0f);
             return;
         }
 
@@ -98,20 +142,115 @@ public class Enemy : MonoBehaviour
         Vector3 target = isChasing ? player.position : startPosition;
         float horizontalDistance = target.x - transform.position.x;
 
-        if (Mathf.Abs(horizontalDistance) > 0.05f)
+        if (Mathf.Abs(horizontalDistance) <= stopDistance)
         {
-            Vector3 newPosition = transform.position;
-            newPosition.x = Mathf.MoveTowards(transform.position.x, target.x, moveSpeed * Time.deltaTime);
-            transform.position = newPosition;
-
-            spriteRenderer.flipX = horizontalDistance < 0;
-            animator.SetFloat("Run", 1f);
-        }
-        else
-        {
+            moveDirection = 0f;
             animator.SetFloat("Run", 0f);
+            return;
+        }
+
+        float wantedDirection = Mathf.Sign(horizontalDistance);
+
+        // Face the way we want to go even if we then decide not to move, so an enemy
+        // waiting at the edge of a platform still looks at the player.
+        spriteRenderer.flipX = wantedDirection < 0f;
+        moveDirection = wantedDirection;
+
+        // Mid-air, keep whatever direction we jumped in - the checks below only make
+        // sense from the ground, and re-running them would stall the jump halfway over.
+        if (isGrounded)
+        {
+            if (IsBlockedAhead(wantedDirection))
+            {
+                if (CanClear(wantedDirection) && Time.time >= nextJumpTime)
+                {
+                    // Small enough to hop over, so hop instead of grinding into it.
+                    jumpRequested = true;
+                }
+                else
+                {
+                    // Too tall to clear. Stop rather than push against it forever.
+                    moveDirection = 0f;
+                }
+            }
+            else if (!HasGroundAhead(wantedDirection))
+            {
+                // The floor runs out ahead and there is nothing to jump onto. Hold position.
+                moveDirection = 0f;
+            }
+        }
+
+        animator.SetFloat("Run", Mathf.Abs(moveDirection));
+    }
+
+    private void FixedUpdate()
+    {
+        // Drive the Rigidbody2D velocity rather than writing transform.position. This body
+        // is Dynamic, and writing its transform teleports it past the solver: it can end up
+        // overlapping the tilemap, which then shoves it back out and reads as jitter.
+        // Same movement model as the player, so the two behave consistently.
+        rb.linearVelocity = new Vector2(moveDirection * moveSpeed, rb.linearVelocity.y);
+
+        if (jumpRequested)
+        {
+            jumpRequested = false;
+            nextJumpTime = Time.time + jumpCooldown;
+
+            // Same shape as Player.Jump: clear the leftover vertical speed first so every
+            // hop reaches the same height regardless of what the body was doing.
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
         }
     }
+
+    private bool IsGrounded()
+    {
+        Vector2 feet = new Vector2(capsule.bounds.center.x, capsule.bounds.min.y);
+        return Physics2D.OverlapCircle(feet, groundCheckRadius, solidLayers) != null;
+    }
+
+    /// <summary>
+    /// Casts a short ray straight down from just in front of the enemy's feet.
+    /// No hit means the floor stops there.
+    /// </summary>
+    private bool HasGroundAhead(float direction)
+    {
+        // Start just above the feet, not level with them. Physics2D has "Queries Start In
+        // Colliders" enabled project-wide, so an origin sunk into the tilemap would report
+        // a hit no matter what is actually ahead.
+        Vector2 origin = new Vector2(
+            capsule.bounds.center.x + direction * ledgeCheckAhead,
+            capsule.bounds.min.y + 0.05f);
+
+        // The LayerMask is what keeps this honest: without it the ray could hit the
+        // player, another enemy, or a pickup and mistake any of them for solid floor.
+        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, ledgeCheckDepth, solidLayers);
+        return hit.collider != null;
+    }
+
+    /// <summary>Is something solid right in front of the enemy's feet?</summary>
+    private bool IsBlockedAhead(float direction)
+    {
+        Vector2 origin = new Vector2(capsule.bounds.center.x, capsule.bounds.min.y + 0.1f);
+        return Physics2D.Raycast(origin, Vector2.right * direction, ForwardCheckLength(), solidLayers);
+    }
+
+    /// <summary>
+    /// Would a jump actually get over whatever is blocking us? Casts a second ray at the top
+    /// of our jumping range: if that one is clear the obstacle is short enough to hop, and if
+    /// it is blocked too then this is a wall and jumping would only bump our head.
+    /// </summary>
+    private bool CanClear(float direction)
+    {
+        Vector2 origin = new Vector2(capsule.bounds.center.x, capsule.bounds.min.y + maxJumpableHeight);
+        return !Physics2D.Raycast(origin, Vector2.right * direction, ForwardCheckLength(), solidLayers);
+    }
+
+    /// <summary>
+    /// Both forward rays start at the middle of the body, so they have to reach out past
+    /// our own half-width before the extra look-ahead distance counts for anything.
+    /// </summary>
+    private float ForwardCheckLength() => capsule.bounds.extents.x + obstacleCheckDistance;
 
     /// <summary>Called when the player stomps this enemy or hits it with a shuriken.</summary>
     public void Die()
@@ -125,4 +264,36 @@ public class Enemy : MonoBehaviour
         // TODO(audio): AudioManager.Instance.PlaySfx(deathClip);
         Destroy(gameObject);
     }
+
+#if UNITY_EDITOR
+    // Draws the three checks in the Scene view so their distances can be tuned by eye.
+    private void OnDrawGizmosSelected()
+    {
+        CapsuleCollider2D c = GetComponent<CapsuleCollider2D>();
+        if (c == null)
+        {
+            return;
+        }
+
+        float direction = spriteRenderer != null && spriteRenderer.flipX ? -1f : 1f;
+        float forward = c.bounds.extents.x + obstacleCheckDistance;
+
+        // Ledge ray, yellow.
+        Vector3 ledgeOrigin = new Vector3(
+            c.bounds.center.x + direction * ledgeCheckAhead,
+            c.bounds.min.y + 0.05f);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(ledgeOrigin, ledgeOrigin + Vector3.down * ledgeCheckDepth);
+
+        // Blocked-ahead ray, red. Anything it hits stops the enemy.
+        Vector3 lowOrigin = new Vector3(c.bounds.center.x, c.bounds.min.y + 0.1f);
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(lowOrigin, lowOrigin + Vector3.right * direction * forward);
+
+        // Clearance ray, green. If this one is clear the obstacle is jumpable.
+        Vector3 highOrigin = new Vector3(c.bounds.center.x, c.bounds.min.y + maxJumpableHeight);
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(highOrigin, highOrigin + Vector3.right * direction * forward);
+    }
+#endif
 }
