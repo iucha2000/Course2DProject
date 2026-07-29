@@ -83,7 +83,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 10
   m_MaskInteraction: 0
   m_Sprite: {fileID: -6367560908665664636, guid: 6e2bc1aa91b0d43478110fc2065d3cf9, type: 3}
   m_Color: {r: 1, g: 0.35, b: 0.35, a: 1}
@@ -213,3 +213,4 @@ MonoBehaviour:
   spikesUpDuration: 3
   spikesDownDuration: 1
   vulnerableColor: {r: 1, g: 0.9, b: 0.35, a: 1}
+  deathClip: {fileID: 0}

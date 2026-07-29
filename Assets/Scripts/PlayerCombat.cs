@@ -13,6 +13,9 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int startingAmmo = 3;
     [SerializeField] private int maxAmmo = 9;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip throwClip;
+
     // Read by the HUD. Private set so only this script can change it.
     public int Ammo { get; private set; }
 
@@ -24,15 +27,22 @@ public class PlayerCombat : MonoBehaviour
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         mainCamera = Camera.main;
-    }
 
-    private void Start()
-    {
+        // Awake, not Start. Player.Start restores the saved ammo over the top of this, and the
+        // order of Start between two components on the same object is undefined - so setting the
+        // default here is what guarantees the save wins rather than it being a coin toss.
         Ammo = startingAmmo;
     }
 
     private void Update()
     {
+        // Update still runs at timeScale 0, so without this the mouse click that presses Resume
+        // would also throw a shuriken the moment the game unfroze.
+        if (PauseMenu.IsPaused)
+        {
+            return;
+        }
+
         // "Fire1" is a default axis in the Input Manager, bound to left ctrl and mouse 0.
         if (Input.GetButtonDown("Fire1"))
         {
@@ -43,6 +53,12 @@ public class PlayerCombat : MonoBehaviour
     public void AddAmmo(int amount)
     {
         Ammo = Mathf.Min(Ammo + amount, maxAmmo);
+    }
+
+    /// <summary>Used when restoring a save, which knows the exact count rather than a delta.</summary>
+    public void SetAmmo(int amount)
+    {
+        Ammo = Mathf.Clamp(amount, 0, maxAmmo);
     }
 
     private void Throw()
@@ -71,7 +87,7 @@ public class PlayerCombat : MonoBehaviour
         // Turn to face the throw, otherwise the player can appear to throw backwards.
         // While walking, Player.ReadInput overwrites this again from the movement input.
         spriteRenderer.flipX = direction.x < 0f;
-        // TODO(audio): AudioManager.Instance.PlaySfx(throwClip);
+        AudioManager.PlaySfx(throwClip);
     }
 
     /// <summary>Direction from the player towards the mouse cursor, in world space.</summary>

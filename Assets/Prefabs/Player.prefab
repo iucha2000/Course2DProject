@@ -85,7 +85,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 20
   m_MaskInteraction: 0
   m_Sprite: {fileID: -6367560908665664636, guid: 6e2bc1aa91b0d43478110fc2065d3cf9, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -179,13 +179,31 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   groundCheckRadius: 0.15
+  coyoteTime: 0.12
   hitStunDuration: 0.25
   invulnerabilityDuration: 1.2
   knockbackForce: 5
   blinkInterval: 0.08
+  dashSpeed: 20
+  dashDuration: 0.16
+  groundDashCooldown: 0.6
+  afterImagePrefab: {fileID: 5390118472066370004, guid: 37fa6824ccc54703821463905c1d7feb, type: 3}
+  afterImageInterval: 0.018
+  dashPassThroughLayers:
+    serializedVersion: 2
+    m_Bits: 256
+  enemyPhaseGrace: 0.4
+  slideColliderSize: {x: 2, y: 0.875}
+  crouchSpeedScale: 0.5
   diveSpeed: 20
   stompBounceForce: 11
   stompNormalThreshold: 0.5
+  jumpClip: {fileID: 0}
+  stompClip: {fileID: 0}
+  hurtClip: {fileID: 0}
+  pickupClip: {fileID: 0}
+  dashClip: {fileID: 0}
+  coinItemName: Coin
 --- !u!95 &-4686862778587625284
 Animator:
   serializedVersion: 7
@@ -225,6 +243,7 @@ MonoBehaviour:
   spawnOffset: 0.7
   startingAmmo: 3
   maxAmmo: 9
+  throwClip: {fileID: 0}
 --- !u!114 &6612093847561029384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -238,3 +257,6 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHearts: 3
+  fallDeathMargin: 2
+  fallDeathHeight: -20
+  deathClip: {fileID: 0}

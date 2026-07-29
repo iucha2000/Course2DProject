@@ -24,6 +24,10 @@ using UnityEngine;
 /// independent, so the rider's gravity, jump and knockback keep working untouched, and there is
 /// never any stored energy to release.</para>
 ///
+/// <para>For that to hold, <b>the platform must have no velocity of its own either</b> - see the
+/// note on <c>rb.position</c> in <see cref="FixedUpdate"/>. A kinematic body moved with
+/// <c>MovePosition</c> does get a velocity, and hands it to whatever is standing on it.</para>
+///
 /// <para>Variants are built by adding components rather than by subclassing:</para>
 /// <list type="bullet">
 /// <item><b>static</b> - leave <c>offset</c> at zero</item>
@@ -91,7 +95,18 @@ public class Platform : MonoBehaviour
 
         // Both moves happen here, before the physics step, so the platform and its riders are
         // never out of step with each other by even one frame.
-        rb.MovePosition(currentPosition);
+        //
+        // Assigning rb.position rather than calling rb.MovePosition, and that is the whole of
+        // the "bounce at the top" fix. MovePosition asks the solver to sweep the body there,
+        // which means it hands the body a velocity for that step - and a rider in contact with
+        // a body that has an upward velocity gets pushed upward too. That borrowed velocity was
+        // still on the rider when the platform stopped at the top, so it kept going and popped
+        // off. Setting the position directly leaves the platform's velocity at zero, so the
+        // contact transfers nothing and the rider is moved by exactly one thing: the line below.
+        //
+        // Sweeping buys us nothing here anyway - the platform moves a few centimetres per step,
+        // far too little to tunnel through anything.
+        rb.position = currentPosition;
         CarryRiders(Delta);
     }
 

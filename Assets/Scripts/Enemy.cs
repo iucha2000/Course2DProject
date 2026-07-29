@@ -54,6 +54,9 @@ public class Enemy : MonoBehaviour
              "needs to be obviously different from the normal colour.")]
     [SerializeField] private Color vulnerableColor = new Color(1f, 0.9f, 0.35f, 1f);
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip deathClip;
+
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Animator animator;
@@ -64,9 +67,10 @@ public class Enemy : MonoBehaviour
     private bool isChasing;
     private Color armouredColor;
 
-    // Decided in Update from the AI state, applied in FixedUpdate as velocity.
-    // -1 = left, 0 = stand still, 1 = right.
+    // Decided in FixedUpdate and applied there as velocity; Update only reads them to drive the
+    // animation. -1 = left, 0 = stand still, 1 = right.
     private float moveDirection;
+    private float facingDirection = 1f;
     private bool isGrounded;
     private bool jumpRequested;
     private float nextJumpTime;
@@ -117,13 +121,45 @@ public class Enemy : MonoBehaviour
 
     private void Update()
     {
-        isGrounded = IsGrounded();
+        // Update is animation only. Everything that decides where this enemy is going is a
+        // physics query, and Unity runs every FixedUpdate for a frame before that frame's
+        // Update - so deciding here would act on answers that are already a frame stale.
+        spriteRenderer.flipX = facingDirection < 0f;
+        animator.SetFloat("Run", Mathf.Abs(moveDirection));
+    }
 
+    private void FixedUpdate()
+    {
+        isGrounded = IsGrounded();
+        moveDirection = DecideDirection();
+
+        // Drive the Rigidbody2D velocity rather than writing transform.position. This body
+        // is Dynamic, and writing its transform teleports it past the solver: it can end up
+        // overlapping the tilemap, which then shoves it back out and reads as jitter.
+        // Same movement model as the player, so the two behave consistently.
+        rb.linearVelocity = new Vector2(moveDirection * moveSpeed, rb.linearVelocity.y);
+
+        if (jumpRequested)
+        {
+            jumpRequested = false;
+            nextJumpTime = Time.time + jumpCooldown;
+
+            // Same shape as Player.Jump: clear the leftover vertical speed first so every
+            // hop reaches the same height regardless of what the body was doing.
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        }
+    }
+
+    /// <summary>
+    /// The whole AI, in one place: chase or go home, then let the three physics checks veto it.
+    /// Returns -1, 0 or 1. May also set <c>jumpRequested</c> as a side effect.
+    /// </summary>
+    private float DecideDirection()
+    {
         if (player == null)
         {
-            moveDirection = 0f;
-            animator.SetFloat("Run", 0f);
-            return;
+            return 0f;
         }
 
         float distanceToPlayer = Vector2.Distance(transform.position, player.position);
@@ -144,63 +180,42 @@ public class Enemy : MonoBehaviour
 
         if (Mathf.Abs(horizontalDistance) <= stopDistance)
         {
-            moveDirection = 0f;
-            animator.SetFloat("Run", 0f);
-            return;
+            return 0f;
         }
 
         float wantedDirection = Mathf.Sign(horizontalDistance);
 
         // Face the way we want to go even if we then decide not to move, so an enemy
         // waiting at the edge of a platform still looks at the player.
-        spriteRenderer.flipX = wantedDirection < 0f;
-        moveDirection = wantedDirection;
+        facingDirection = wantedDirection;
 
         // Mid-air, keep whatever direction we jumped in - the checks below only make
         // sense from the ground, and re-running them would stall the jump halfway over.
-        if (isGrounded)
+        if (!isGrounded)
         {
-            if (IsBlockedAhead(wantedDirection))
-            {
-                if (CanClear(wantedDirection) && Time.time >= nextJumpTime)
-                {
-                    // Small enough to hop over, so hop instead of grinding into it.
-                    jumpRequested = true;
-                }
-                else
-                {
-                    // Too tall to clear. Stop rather than push against it forever.
-                    moveDirection = 0f;
-                }
-            }
-            else if (!HasGroundAhead(wantedDirection))
-            {
-                // The floor runs out ahead and there is nothing to jump onto. Hold position.
-                moveDirection = 0f;
-            }
+            return wantedDirection;
         }
 
-        animator.SetFloat("Run", Mathf.Abs(moveDirection));
-    }
-
-    private void FixedUpdate()
-    {
-        // Drive the Rigidbody2D velocity rather than writing transform.position. This body
-        // is Dynamic, and writing its transform teleports it past the solver: it can end up
-        // overlapping the tilemap, which then shoves it back out and reads as jitter.
-        // Same movement model as the player, so the two behave consistently.
-        rb.linearVelocity = new Vector2(moveDirection * moveSpeed, rb.linearVelocity.y);
-
-        if (jumpRequested)
+        if (IsBlockedAhead(wantedDirection))
         {
-            jumpRequested = false;
-            nextJumpTime = Time.time + jumpCooldown;
+            if (CanClear(wantedDirection) && Time.time >= nextJumpTime)
+            {
+                // Small enough to hop over, so hop instead of grinding into it.
+                jumpRequested = true;
+                return wantedDirection;
+            }
 
-            // Same shape as Player.Jump: clear the leftover vertical speed first so every
-            // hop reaches the same height regardless of what the body was doing.
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
-            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            // Too tall to clear. Stop rather than push against it forever.
+            return 0f;
         }
+
+        if (!HasGroundAhead(wantedDirection))
+        {
+            // The floor runs out ahead and there is nothing to jump onto. Hold position.
+            return 0f;
+        }
+
+        return wantedDirection;
     }
 
     private bool IsGrounded()
@@ -261,7 +276,7 @@ public class Enemy : MonoBehaviour
             Instantiate(ammoDropPrefab, transform.position, Quaternion.identity);
         }
 
-        // TODO(audio): AudioManager.Instance.PlaySfx(deathClip);
+        AudioManager.PlaySfx(deathClip);
         Destroy(gameObject);
     }
 

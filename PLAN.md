@@ -12,48 +12,53 @@ exit. Progress and settings persist between sessions.
 
 ## ▶ START HERE — current state
 
-*Last updated: end of the M2.5 cleanup session.*
+*Last updated: end of the M3 session.*
 
 | | |
 |---|---|
-| **Done** | M0 (foundation), M1 (player refactor + combat), M2 (enemies, hazards, health, camera bounds), M2.5 (convention cleanup) |
-| **Next** | **M3 — audio, PlayerPrefs, HUD, pause menu, level flow** |
-| **Playable now** | `Level1` only. Move, jump, dive-stomp, throw shuriken at the mouse, take damage, die and reload, collect coins / cherries / ammo. |
-| **Not built yet** | HUD (hearts, coins, ammo), pause menu, saving, level exit, audio, the actual level designs |
+| **Done** | M0 (foundation), M1 (player refactor + combat), M2 (enemies, hazards, health, camera bounds), M2.5 (convention cleanup), **M3 (audio, saving, HUD, pause, level flow)** |
+| **Next** | **M4 — level design & build** |
+| **Playable now** | All three levels load and chain. Move, jump (with coyote time), **dash in the air and slide on the ground (Shift)**, dive-stomp, throw shuriken at the mouse, take damage, fall out of the level and die, collect coins / cherries / ammo, watch the HUD, claim checkpoints, pause with Esc, set volume, reach the exit and unlock the next level. Checkpoint, ammo and coins all survive death, level changes and a full relaunch. |
+| **Not built yet** | The actual level designs — `Level2` and `Level3` are still copies of `Level1`. Audio *clips* (the system is wired; see *Deferred manual steps*). |
 
-**To resume, just say:** *"Read PLAN.md and continue with M3."*
+**To resume, just say:** *"Read PLAN.md and continue with M4."*
 
 ### Things to hand over at the start of the next session
 - **Close Unity before saying go.** Scene, prefab and controller YAML get edited directly, and the
   Editor will overwrite those edits when it saves. Commit first too.
-- Nothing is blocked. Audio files are **not** needed — M3 writes the audio system with every play
-  call commented out (see *Deferred manual steps*), so it can be built without any `.wav` files.
-- `Level1` has hand-placed test objects (a Saw, a SpikedEnemy). `Level2` and `Level3` are still plain
-  copies. **Level1 is no longer safe to copy over the others** — they get designed properly in M4.
+- Nothing is blocked.
+- `Level1` has hand-placed test objects (a Saw, a SpikedEnemy) and the `LevelExit` was dropped at
+  `x = 24` without knowing whether there is floor under it. **Move it onto solid ground before
+  playtesting the level flow.** `Level2` and `Level3` are still plain copies.
+- **Level1 is no longer safe to copy over the others** — they get designed properly in M4.
 
-### Five checklist items are currently owed
-None of these is in shipping code right now. All are on the "must survive" list:
+### Checklist items owed: one left
+Six were owed going into M3 — the five that were tracked, plus `yield return null`, which the
+checklist had ticked but which was not actually in any script. Five are now repaid:
 
-| Item | Lost in | Repaid by |
+| Item | Repaid by | Where |
 |---|---|---|
-| `SetActive` | M1 refactor | **M3** — pause panel / HUD hearts |
-| `SetParent` | M2.5 follow-up (platform stopped parenting the player) | **M3** — runtime heart icons |
-| `Time.deltaTime` | M2.5 follow-up | **M3** — pause menu, vs `Time.unscaledDeltaTime` |
-| `OnCollisionExit2D` | M2.5 follow-up 2 (platform lost its collision callbacks) | **M3** — coyote time |
-| `Transform.Translate` | M1 refactor | **M4** — scrolling background element |
+| `SetActive` | M3 | pause panel, HUD hearts, the Continue button on the intro screen |
+| `SetParent` | M3 | heart icons instantiated under the hearts container (`Hud.BuildHearts`) |
+| `Time.deltaTime` | M3 | banner fade, and the pause menu's two clocks vs `Time.unscaledDeltaTime` |
+| `OnCollisionExit2D` | M3 | coyote time (`Player.OnCollisionExit2D`) |
+| `yield return null` | M3 | the per-frame step of the banner fade (`PickupBanner.HideAfterDelay`) |
+| `Transform.Translate` | **M4** — still owed | scrolling background element |
 
-> **Coyote time** is the suggested home for `OnCollisionExit2D`: when the player stops touching the
-> ground, start a short window in which they can still jump. It is a well-known platformer technique,
-> about five lines, genuinely improves the feel, and `OnCollisionExit2D` is the natural trigger — so
-> it repays the checklist item without being a box-ticking exercise.
-
-`Physics2D.Raycast` was in the same position and has already been repaid — M2.5 uses it three times
-in the enemy's ledge, blocked and clearance checks.
+`Physics2D.Raycast` was in the same position and was repaid in M2.5 — it is used three times in the
+enemy's ledge, blocked and clearance checks.
 
 ### Known placeholders to revisit in M4
 - `CameraBounds` polygon is sized to the current test tilemap, not to a designed level.
 - The three levels are identical copies with no real layout yet.
 - `CubeObstacle.prefab` still points at a sprite inside `Library/PackageCache/` *(defect #10)*.
+- `LevelExit` is placed at `x = 24` in all three levels, and the two `Checkpoint`s at `x = -14`
+  and `x = 10`. All were guesses — they need putting on real ground once the levels exist.
+- The fall-death line is derived from each level's `CameraBounds`, so it needs no per-level
+  tuning — but every designed level must actually **have** camera bounds, or it falls back to the
+  fixed `Fall Death Height` of −20.
+- **M4 must design at least one low tunnel** to make the ground slide worth having, and size air
+  gaps against the single air dash (`Dash Speed` 20 × `Dash Duration` 0.16 ≈ 3.2 units).
 
 ---
 
@@ -88,25 +93,25 @@ The finished game must demonstrate **every** box below.
 - [x] `Rigidbody2D` — Dynamic **and** Kinematic, `gravityScale`, constraints, mass, collision detection
 - [x] Box / Circle / Capsule / Tilemap Collider2D
 - [x] Trigger vs solid colliders
-- [x] `OnCollisionEnter2D` / `OnCollisionExit2D` + **contact normals**
+- [x] `OnCollisionEnter2D` / `OnCollisionStay2D` / `OnCollisionExit2D` + **contact normals**
+      *(Exit restored in M3 as coyote time; Stay added in M3 so a solid hazard re-hits)*
 - [x] `OnTriggerEnter2D`
 - [x] `Physics2D.Raycast` / `RaycastHit2D` — *M1 removed the player's raycast ground check;
       **restored in M2.5** as the enemy's ledge check (`Enemy.HasGroundAhead`)*
 - [x] `AddForce` + `ForceMode2D.Impulse`, `linearVelocity`
 - [x] MonoBehaviour lifecycle, Inspector-serialized fields
 - [x] `GetComponent<T>`, `CompareTag`, `FindGameObjectWithTag`
-- [ ] `Transform.Translate` / `SetParent`, `Time.deltaTime` — ⚠️ **all three are currently missing
-      from shipping code.** `Translate` went in the M1 player refactor; `SetParent` and
-      `Time.deltaTime` went in the M2.5 follow-up when the moving platform stopped parenting the
-      player. **Owed by M3** — `SetParent` for HUD heart icons created at runtime, `Time.deltaTime`
-      for the pause menu (contrasted against `Time.unscaledDeltaTime`, which is the natural way to
-      show what `timeScale = 0` actually does). **Owed by M4** — `Translate` on a scrolling
-      background element
+- [ ] `Transform.Translate` / `SetParent`, `Time.deltaTime` — `SetParent` restored in M3
+      (`Hud.BuildHearts`, with `worldPositionStays: false`), `Time.deltaTime` restored in M3
+      (banner fade + pause clocks). ⚠️ **`Translate` is still missing** — went in the M1 player
+      refactor, **owed by M4** on a scrolling background element
 - [x] Coroutines — stored handle + `StopCoroutine`, `WaitForSeconds`, `yield return null`
+      *(`yield return null` was missing until M3 despite this box being ticked; the banner fade
+      in `PickupBanner` now uses it)*
 - [x] `Vector2.Distance`, `Mathf.Abs`, `MoveTowards`
-- [ ] `Dictionary<string,int>`, `SetActive` — ⚠️ `Dictionary` is fine (`Player.cs`), but
-      **`SetActive` no longer exists in shipping code**. **Owed by M3** — the pause menu panel
-      and the HUD heart icons both need it
+- [x] `Dictionary<string,int>` (`Player.collectedItemCounts`, read by the HUD through
+      `Player.CollectedCount`), `SetActive` — restored in M3 (pause panel, HUD hearts,
+      intro Continue button)
 - [x] AI state machine with hysteresis
 - [x] Legacy Input Manager — `GetAxis`, `GetKeyDown`
 - [x] Orthographic camera
@@ -126,10 +131,14 @@ The finished game must demonstrate **every** box below.
 - [x] **`Instantiate` / `Destroy`** — M1 (shuriken, ammo drop)
 - [x] **Player offense** (dive-stomp + shuriken) — M1
 - [x] **Prefab Variants** (`SpikedEnemy`) — M2
-- [ ] **PlayerPrefs** (`SetInt`/`GetInt`, `SetFloat`/`GetFloat`, `DeleteKey`) — M3
-- [ ] **Audio** (`AudioSource`, `AudioClip`, `PlayOneShot`, music vs SFX, volume) — M3 structure,
-      **clips wired by the user later** (see Deferred manual steps)
-- [ ] **`Time.timeScale`** (pause menu) — M3
+- [x] **PlayerPrefs** (`SetInt`/`GetInt`, `SetFloat`/`GetFloat`, `DeleteKey`) — M3 (`SaveSystem`)
+- [ ] **Audio** (`AudioSource`, `AudioClip`, `PlayOneShot`, music vs SFX, volume) — M3 built the
+      whole system and every call site is live. ⚠️ **Not satisfied until clips are assigned** —
+      see Deferred manual steps
+- [x] **`Time.timeScale`** (pause menu) — M3
+- [x] **uGUI `Slider`** + `onValueChanged.AddListener` — M3 (volume sliders)
+- [x] **`CanvasGroup`** for fading a UI subtree — M3 (pickup banner)
+- [x] **`DontDestroyOnLoad` singleton** — M3 (`AudioManager`)
 
 ---
 
@@ -427,27 +436,476 @@ Two supporting fixes:
 `Platform` is now purely a mover that publishes its own velocity — it has no collision callbacks at
 all, which is what cost the project its last `OnCollisionExit2D` (see the owed table at the top).
 
-### M3 — Audio, PlayerPrefs, HUD, pause, flow
-> **Not blocked on audio files.** `AudioManager` and the volume plumbing get built in full, but every
-> individual *play* call at its call site is written as a **commented line** with a `// TODO(audio):`
-> marker. The user drops in clips and uncomments them later in development.
-- [ ] `AudioManager.cs` — `DontDestroyOnLoad` singleton, music + SFX sources, `PlayOneShot`
-- [ ] `SaveSystem.cs` — static wrapper over `PlayerPrefs` (unlock level, volumes, reset)
-- [ ] HUD rework — **separate** TMP objects for the pickup banner and the counters *(defect #3)*,
-      plus hearts and ammo. *(Confirmed still live in the M2.5 audit: `itemNameText` and
-      `collectedCountText` point at the **same** TMP object in all three levels, so the banner and
-      the counter overwrite each other.)* Also drop `GameCanvasHandler`'s public component refs in
-      favour of resolving them in code, per `CLAUDE.md`
-- [ ] **Three owed checklist items must land here** *(see the checklist above)*:
-      **`SetActive`** (pause panel / HUD hearts), **`SetParent`** (heart icons instantiated at
-      runtime under a hearts container), **`Time.deltaTime`** (pause menu, shown against
-      `Time.unscaledDeltaTime` so `timeScale = 0` is demonstrated rather than just used)
-- [ ] `PauseMenu.cs` — Esc, `Time.timeScale = 0`, Resume / volume sliders / Quit to Menu
-- [ ] `LevelExit.cs` — exit trigger → save unlock → load next scene
-- [ ] Intro screen — Continue vs New Game driven by saved unlock, volume sliders
+### M3 — Audio, PlayerPrefs, HUD, pause, flow ✅ DONE
+- [x] `AudioManager.cs` — `DontDestroyOnLoad` singleton, separate music + SFX `AudioSource`s,
+      `PlayOneShot`, volumes backed by `SaveSystem`, track chosen from `SceneManager.sceneLoaded`
+- [x] `SaveSystem.cs` — static wrapper over `PlayerPrefs` (unlock level, volumes, reset)
+- [x] HUD rework — `GameCanvasHandler` **renamed to `PickupBanner`** and reduced to just the
+      banner; the counters moved to the new `Hud`. That is what fixes *defect #3*: the two fields
+      that pointed at the same TMP object are gone entirely rather than being re-pointed
+- [x] `PauseMenu.cs` — Esc, `Time.timeScale = 0`, Resume / volume sliders / Quit to Menu
+- [x] `LevelExit.cs` — exit trigger → save unlock → load next scene
+- [x] Intro screen — Continue vs New Game driven by the saved unlock
+- [x] All owed checklist items except `Transform.Translate` *(see the table at the top)*
+- [x] **Fall death** — nothing killed a player who fell into a pit; they fell forever
+- [x] **`Enemy` physics queries moved to `FixedUpdate`** — all four ran in `Update`, which
+      `CLAUDE.md` forbids and which M2.5 had already fixed on the player
+- [x] **`CubeObstacle` re-hits** — see below
+
+**Design notes:**
+
+**1. The audio calls are live, not commented.** This is a deliberate change to the original
+agreement, and it is strictly less work: `AudioManager.PlaySfx` is **static** and swallows both a
+null clip and a null `Instance`, so every call site is one plain line that does nothing until a
+clip is assigned. Finishing the audio is now "drop clips into the Inspector" with no code editing
+at all, instead of "drop in clips *and* find and uncomment eight lines". The honesty marker moves
+with it: the Audio box stays unticked until clips are actually assigned.
+
+**2. `CubeObstacle` is a static hazard, and now behaves like one.** It is the fixed counterpart to
+the Saw — touch it and you get hurt. It kept the `Obstacle` tag and the `Ground` layer (it *is*
+solid, and enemies need to see it to hop it), but only `OnCollisionEnter2D` was checking it, so the
+player could stand on top of a damaging block indefinitely: once the invulnerability expired no
+second Enter was ever raised. `Player` now has **`OnCollisionStay2D`** for exactly the reason
+`Hazard` has `OnTriggerStay2D`. Its prefab was also **Dynamic** with all three levels overriding it
+to Kinematic; the prefab is now Kinematic and the overrides are gone.
+
+**3. The HUD reads, it is never told.** Hearts, coins and ammo are all already public read-only
+state on the player, so `Hud` polls them in `Update` and compares against what is currently drawn
+before writing. Nothing in the gameplay code knows a HUD exists, and the display cannot get out of
+sync with the game the way an event-driven HUD can when one call site is forgotten.
+
+**4. The HUD and pause menu are separate prefabs, each with its own Canvas.** Two reasons. A canvas
+is rebuilt as a unit, so the pause menu changing cannot force the HUD to rebuild. And a prefab with
+its own canvas drops into a scene as a plain root object, which is far less fragile to write by
+hand than re-parenting into an existing canvas. Sorting orders: level canvas 0, HUD 1, pause 2.
+
+**5. Pause has to gate input explicitly.** `Time.timeScale = 0` stops `FixedUpdate` but *not*
+`Update`, so `Player.ReadInput` and `PlayerCombat.Update` both check `PauseMenu.IsPaused`. Without
+it the mouse click that presses Resume would also throw a shuriken.
+
+**6. Coyote time uses the velocity, not a flag.** `OnCollisionExit2D` opens the window only if the
+player is moving downwards or level — after a jump they are moving up, so it does not arm and
+cannot grant a second jump. That replaces the "did I leave the ground by jumping?" bool that this
+otherwise needs.
 
 **Acceptance:** volume and unlock survive a full quit and relaunch; pause freezes everything;
 finishing a level unlocks the next.
+
+#### M3 follow-up (after first playtest) — HUD size, Options screen, intro rebuild
+
+**1. HUD icons doubled.** Hearts 48 → 96 px, coin and shuriken 40 → 80 px, counters 32 → 48 pt,
+rows re-spaced to match. All four numbers are RectTransform sizes in the Inspector, so they are
+easy to keep tuning:
+
+| Thing | Where |
+|---|---|
+| Heart size | `Heart.prefab` → RectTransform Width/Height |
+| Coin / shuriken size | `Hud.prefab` → `CoinIcon` / `AmmoIcon` → Width/Height |
+| Gap between hearts | `Hud.prefab` → `Hearts` → Horizontal Layout Group → Spacing |
+| Counter text size | `Hud.prefab` → `CoinCounter` / `AmmoCounter` → Font Size |
+
+**2. Volume moved behind an Options button, shared by both menus.** The pause menu is now
+**Continue / Options / Quit to Menu**, and the intro screen is **New Game / Continue / Options**.
+Pressing Options hides the button column and shows the sliders in the same place; Back returns.
+
+`OptionsPanel.cs` is written so it knows nothing about either menu — whoever opens it passes in the
+screen it should replace, and Back puts that screen back. That is what lets one script serve both.
+The panel's *objects* are emitted into both the prefab and the scene rather than being one nested
+prefab, because a nested `PrefabInstance` inside a prefab and a re-parented instance inside a scene
+are both markedly more fragile to write by hand than two copies of a generated subtree. The
+behaviour lives in the one shared script, which is the part that matters.
+
+> `OptionsPanel` ships **active** and switches itself off in `Awake`. An object that starts inactive
+> never receives `Awake` at all, so its sliders would still be null the first time something called
+> `Open()`.
+
+**3. The intro screen was rebuilt, and that is what fixes the unclickable Continue button.** The
+cause was sibling order: uGUI draws and raycasts children in order, and the new Continue button had
+been added as the **first** child of the Canvas, so the full-screen translucent `Panel` — second in
+the list, with Raycast Target on — sat on top of it and swallowed every click. New Game worked only
+because it happened to be third, above the panel.
+
+Rather than re-order one button, every child of the Canvas was regenerated: title and subtitle on
+the left, one large frog on the right (the eight compass-point copies are gone), a dark band behind
+a centred button column, and a version label. Generating it means the order is correct by
+construction and every decorative element has **Raycast Target off**, so this class of bug cannot
+come back.
+
+**Acceptance:** the HUD is readable at a glance; Options opens and closes from both menus and the
+volume set in one is what the other shows; all three intro buttons respond.
+
+#### M3 follow-up 2 — menus rebuilt on layout groups
+
+**1. Both menus are now laid out by uGUI instead of by hand.** Every button column is an
+`Image` + `VerticalLayoutGroup` + `ContentSizeFitter`:
+
+| Was | Now |
+|---|---|
+| each button at a written-down `anchoredPosition` | the layout group spaces them |
+| each button 420 px wide | width comes from the column (`Child Control Width`) |
+| the band a fixed 1180 × 470 | the fitter derives its height from what is inside |
+
+That is what makes **hiding Continue close the gap**: `SetActive(false)` removes it from the
+layout, so New Game and Options move up and the band shrinks around them. There is no second set
+of positions for the no-save case, because there are no positions at all.
+
+What is left as a plain number is deliberate and is one field each: the column's **width**, the
+group's **Spacing** and **Padding**, and each button's **height**. `Child Control Height` is off on
+purpose so a button's height stays a single editable value rather than needing a `LayoutElement`.
+
+**2. Intro button order is now Continue / New Game / Options** — the returning player's button
+first. Order is hierarchy order, so it is changed by dragging in the Hierarchy, not in code.
+
+**3. The vertical "Options" text.** The four buttons are byte-for-byte identical in the asset, so
+nothing was wrong with that button specifically — it was a layout-timing fault, and it needed two
+fixes:
+
+- **Root cause.** `OptionsPanel` used to ship *active* and switch itself off in `Awake`, which
+  meant that when the pause panel was enabled the options panel was activated and deactivated
+  inside the same frame. That queues a layout rebuild which is then discarded, and TextMeshPro can
+  come back with stale zero-width geometry — a label wrapping at zero width renders one letter per
+  line, which is exactly what "vertical" looks like. It now **ships inactive** and wires itself on
+  first `Open()` instead, so the churn never happens. (An inactive object never receives `Awake`,
+  which is why the wiring had to become lazy rather than just moving.)
+- **Second, independent guard.** Every button label and menu label now has **text wrapping off**.
+  These are single-line labels by definition, so this is right on its own terms — and with wrapping
+  off, a narrow rect can only ever clip, never stack letters vertically. The failure mode is gone
+  rather than merely fixed.
+
+> The HUD was left on its existing layout. Its hearts already use a `HorizontalLayoutGroup`, the
+> two counter rows work, and rebuilding a working part of the UI is risk without a request behind
+> it. Say the word if you want the counters on a layout group too.
+
+**Acceptance:** with no save, the intro shows New Game and Options with no gap above them; after
+finishing a level it shows all three. No label renders vertically in either menu.
+
+#### M3 follow-up 3 — checkpoints, carried state, clocks removed
+
+**1. The checkpoint *is* the save.** There is no separate "saved game" record. Touching a
+checkpoint writes where you were and what you were carrying, and that one record answers all three
+questions the game ever asks:
+
+| Situation | What happens |
+|---|---|
+| You die | reload the level, stand at the checkpoint, restore ammo and coins |
+| You finish a level | same record written for the *next* level, with no position |
+| You quit and press Continue | load the level the record names, then the same restore runs |
+
+One piece of state means the three can never disagree. All of it lives in
+`SaveSystem`, and `Player.RestoreFromSave` in `Start` is the single place it is read back — so it
+covers dying, level transitions and relaunching without three separate code paths.
+
+**2. Touching a checkpoint heals you to full.** That is what makes "full hearts" the honest answer
+everywhere, and it is why the save does **not** store a heart count at all: the answer is always
+"max", so there is nothing to remember and no way to end up stranded at a hard checkpoint on one
+heart. Ammo and coins *are* stored, and rewind with you — so coins collected after the checkpoint
+come back into the level and cannot be double-counted.
+
+**3. Coins are a running total across the whole game.** `LevelExit` records the carried ammo and
+coins against the *next* level before loading it, with no position, so the next level uses its own
+spawn point but you keep what you earned.
+
+**4. `PlayerCombat` now sets its starting ammo in `Awake`, not `Start`.** `Player.Start` restores
+the saved ammo over the top, and the order of `Start` between two components on the same object is
+undefined — so this was a genuine race that would have worked or not depending on script order.
+Awake always runs before any Start, which makes it deterministic.
+
+**5. The checkpoint's feedback is deliberately not the pickups'.** Pickups bob gently and forever,
+which reads as *come and take me*. A checkpoint does a single sharp scale pulse and then holds its
+lit colour, which reads as *done, claimed*. Same reasoning as the M1 decision to give the ammo drop
+different motion from the thrown shuriken: one glance should say which is which. Dormant
+checkpoints are grey; the one you respawn at shows itself already lit, without replaying the pulse.
+
+**6. The pause menu's two clocks are gone**, as requested — the panel is now just the title and the
+three buttons.
+
+> ⚠️ **Checklist note.** The clocks were where `Time.unscaledDeltaTime` was demonstrated, and it is
+> now **not used anywhere**. No checklist box breaks: the tracked item is `Time.deltaTime`, which is
+> still used twice — the pickup-banner fade and the new checkpoint pulse — and `unscaledDeltaTime`
+> only ever appeared as supporting detail in the explanation of `timeScale`. Worth knowing if you
+> get asked about it in the exam: the honest answer is that `timeScale = 0` is demonstrated by the
+> pause itself, and unscaled time is what you would reach for if something had to keep moving
+> while paused.
+
+**Acceptance:** dying returns you to the last checkpoint on full hearts with the ammo and coins you
+had when you touched it; finishing a level carries ammo and coins into the next; quitting entirely
+and pressing Continue puts you back at the same checkpoint with the same inventory; New Game clears
+all of it.
+
+#### M3 follow-up 4 — sorting order, platform bounce, banner removed, bigger cherries
+
+**1. Sprite sorting order is now explicit.** Every sprite in the game was on sorting layer
+`Default` at order **0**, including the tilemap — so when two overlapped, which one drew in front
+was left to Unity's fallback ordering. That is why the checkpoint flag cut through the player. The
+project now has a stated ladder, all still on `Default`:
+
+| Order | What | Why |
+|---|---|---|
+| 0 | tilemap, platforms, cube, checkpoint, level exit | the world and the props standing in it |
+| 5 | coins, cherries, ammo drops | pickups read on top of scenery |
+| 10 | enemies, saws | actors above pickups |
+| 20 | **player** | always in front of everything it walks past |
+| 25 | shuriken | in flight, above everything |
+
+**2. The platform bounce at the top: `MovePosition` was the cause.** Follow-up 4 fixed carrying
+riders by velocity, but the *platform itself* was still moved with `rb.MovePosition`, and that is
+not a neutral way to move a kinematic body — it hands the body a velocity for that step so the
+solver can sweep it. A rider in contact with an upward-moving body gets pushed upward too, and
+that borrowed velocity was still on the player when the platform stopped, so it kept going.
+
+`Platform` now assigns `rb.position` directly. The platform's velocity stays zero, the contact
+transfers nothing, and the rider is moved by exactly one thing — the explicit position carry.
+Sweeping bought nothing here anyway: the platform moves a few centimetres per physics step.
+
+> This is the same lesson as the original rework, one level down: *anything* that gives the rider
+> a second source of motion reintroduces the bounce, and `MovePosition` was a second source hiding
+> in plain sight.
+
+**3. The "item collected" banner is gone entirely**, along with `PickupBanner.cs`, the `ItemInfo`
+objects and — since it was the only thing left on it — the now-empty `Canvas` in all three levels.
+The HUD already shows every count.
+
+That removal took two demonstrated APIs with it, and both are repaid by changes that stand on
+their own merits rather than as box-ticking:
+
+| Lost with the banner | Repaid by |
+|---|---|
+| `StopCoroutine` + stored handle | `Player.EndHurtEarly` — a checkpoint heals you, so it now also cuts the hurt-blink short. Without it a checkpoint could leave you flashing, or worse, leave the sprite switched off mid-blink |
+| `Image.sprite` at runtime | `Hud` takes the coin and shuriken icons from the pickup prefabs' own `Item.itemSprite`, so the art is recorded in one place instead of two that can disagree |
+| `Graphic.enabled` | HUD hearts now hide via `Image.enabled` instead of `SetActive` — see below |
+
+> `CanvasGroup` also went with the banner. It was never on the course checklist; it was an extra
+> the fade happened to use, so nothing is owed.
+
+**4. Empty hearts hide the Image, not the GameObject.** `SetActive(false)` would remove the heart
+from the `HorizontalLayoutGroup` as well, so the remaining hearts would slide sideways every time
+one was lost. Disabling just the `Image` keeps the slot and stops it drawing, so the row never
+moves. `SetActive` is still demonstrated in eleven other places.
+
+**5. Cherries enlarged again**, 96 → **132 px**, with the counter rows pushed down to clear them.
+They are the resource that decides whether you live, so they are now the biggest thing on the HUD.
+
+**Acceptance:** the player always draws in front of the checkpoint flag; riding the platform to the
+top no longer pops the player off it; no pickup banner appears; the heart row does not shift as
+hearts are lost.
+
+#### M3 follow-up 5 — fall death made responsive, dash and slide
+
+**1. Fall death was never missing — it was invisible.** `PlayerHealth` has killed the player below
+a set height since M3, but that height was a fixed `-20` while `CameraBounds` in Level1 bottoms out
+at `y = -5`. So the player dropped out of sight and then fell silently for another 15 units, about
+**1.2 seconds of nothing**, before the level reloaded. It read as broken.
+
+The death line is now **measured from the level's own camera bounds** —
+`BoundingShape2D.bounds.min.y - fallDeathMargin` — because those bounds already describe where the
+level is, and writing a second number for the same thing means keeping two things in step by hand.
+Falling out of view now kills in about a fifth of a second, and when M4 resizes a level's bounds
+the death line follows on its own. The old fixed height survives only as a fallback for a level
+with no bounds.
+
+**2. Dash (Shift).** In the air it is a straight horizontal dash in the facing direction; on the
+ground it is a **slide**. Gravity is switched off for the duration, so the dash covers the same
+distance every time instead of a shorter, drooping one when entered while already falling. It
+grants **no invulnerability**, so being hit cancels it — which it has to, or `TickDash` would keep
+overwriting the knockback velocity.
+
+Two different limits, because they solve different problems:
+
+| | Limit | Why |
+|---|---|---|
+| Air | **once per jump**, restored on landing | a chain of air dashes would cross gaps the level never intended; one dash makes the maximum air distance a fixed number M4 can design around |
+| Ground | **cooldown** (0.6 s) | nothing to bound here, it just should not be spammable |
+
+**3. The slide shortens the player, so low gaps become passable.** The whole object is scaled to
+`slideHeightScale`, which shortens the capsule with it. *(Superseded in follow-up 10: the collider
+is now stated outright as `slideColliderSize` and taken from the Slide artwork.)* Scaling happens around the transform origin, so the body is moved down by exactly
+how far the bottom of the capsule moved, which keeps the feet planted. The sprite pivot is centred
+and the capsule bottom sits exactly at the sprite bottom, so one correction fixes both.
+
+**Getting out again is the part that needed care.** A slide that simply ended would pop the player
+back to full height inside a ceiling. Instead:
+
+- `TryStand` runs every physics step and only stands up when there is **headroom**.
+- The headroom test is an `OverlapBox` covering *only the band between the crouched head and the
+  standing head*. Testing the whole standing capsule would find the floor the player is stood on
+  and decide there was never room.
+- While still stuck low, the player keeps walking at `crouchSpeedScale` (half speed). That is what
+  makes a tunnel **longer than one slide** crossable — otherwise they would stop dead inside it
+  with no way out. Jumping is blocked while crouched, since there is by definition a ceiling.
+
+**4. Afterimages.** `AfterImage.prefab` is a bare SpriteRenderer that copies whichever animation
+frame the player was on, then fades and destroys itself. Because it copies the sprite, the facing
+and the scale, the trail crouches too when the dash is a slide. Nothing keeps a reference to it -
+the player spawns and forgets.
+
+#### M3 follow-up 6 — dash art, and dashing through enemies
+
+**1. `Art/Player/Dash.png` is now the dash pose**, which removed a workaround. The sprite is a
+flattened frog on the same 32×32 frame as every other player animation with the same centred
+pivot, so its feet line up with Idle and Run for free.
+
+Because the sprite itself now reads as *low*, the slide no longer squashes the transform. It
+shortens the **collider only**: the capsule height is scaled and its offset moved by half of
+whatever was removed, which keeps the bottom — the feet — exactly where it was. That is simpler
+than the old scale-and-compensate, and it removes an entire class of problem, since the transform
+scale is never touched at all now.
+
+**2. Animator.** `Player_Dash.anim` plus a `Dash` **bool** on `Player.controller`, driven by
+`isDashing || isCrouched` — the flat pose is the right shape for shuffling under a ceiling too,
+not just for the dash itself. It follows the pattern already in the controller: **AnyState →
+Player_Dash** while `Dash` is true, and two ways out so the pose does not outstay its welcome:
+
+| Leaving the dash | Goes to | Why |
+|---|---|---|
+| `!Dash && IsGrounded` | `Idle` | landed, or the slide ended with headroom |
+| `!Dash && !IsGrounded` | `Player_Fall` | an air dash that ended mid-air would otherwise show the *idle* pose all the way down |
+
+**3. Dashing passes through enemies, and only enemies.** Done with **`Rigidbody2D.excludeLayers`**
+rather than `Physics2D.IgnoreLayerCollision`, for two reasons: it is per-body, so it cannot leak
+into anything else in the scene, and it is restored automatically when the dash ends or the object
+is destroyed. Excluding the layer switches off contacts entirely, so no damage is taken on the way
+through either — which is consistent with the dash having no invulnerability, because it is not
+invulnerability, it is simply not touching them.
+
+The mask is a serialized `Dash Pass Through Layers` set to **Enemy** only. Scenery is deliberately
+not in it — dashing through walls would let the player leave the level.
+
+> If a dash *ends* while still overlapping an enemy, contacts resume and the player takes the hit.
+> That is intended: the dash covers about 3.2 units against an enemy roughly 1.5 wide, so stopping
+> inside one means you dashed into it rather than through it.
+
+#### M3 follow-up 7 — afterimage tuning, and no damage while dashing
+
+**1. The afterimage was too sparse and lasted too long.** The numbers made this inevitable rather
+than it being a matter of taste:
+
+| | Was | Now | Why |
+|---|---|---|---|
+| Spawned from | `FixedUpdate` | **`Update`** | the physics step is a fixed 0.02 s, so the trail was capped at one ghost per step. Update also uses the *interpolated* transform, which is where the sprite is actually drawn |
+| Interval | 0.035 s | **0.018 s** | 4 ghosts 0.7 units apart became ~9 about 0.36 units apart — a trail rather than a row of clones |
+| Lifetime | 0.28 s | **0.2 s** | it outlived the 0.16 s dash, so every ghost was still hanging in the air after the player had stopped |
+| Fade | linear | **squared** | a linear fade spends half its life at half opacity, which is exactly where a ghost reads as a second character standing there |
+| Start alpha | 0.55 | **0.45** | |
+
+All five are Inspector fields — `After Image Interval` on the Player, `Lifetime` and `Tint` on
+`AfterImage.prefab` — so the look stays tunable without touching code.
+
+**2. Dashing no longer takes damage from enemies.** `excludeLayers` stops the contact arising, but
+a contact already in progress when the dash *began* can still be delivered for a step, which is
+enough to lose a heart on the way in. The rule is now also stated directly in
+`Player.TryTakeContactDamage`: while dashing, an `Enemy` contact is ignored outright. Relying on
+the physics engine to imply a gameplay rule was the mistake; the engine gives the pass-through, the
+guard guarantees the consequence.
+
+**Acceptance:** the dash leaves a smooth trail that is gone by the time the player stops; dashing
+into and through an enemy costs no health.
+
+#### M3 follow-up 8 — the slide floated, and the dash still cost a heart
+
+Both of these were real bugs in follow-up 5/7, and both had the same shape: a rule that was *stated*
+somewhere but not *true* everywhere.
+
+**1. The slide floated and then dropped, because a vertical capsule cannot be shorter than it is
+wide.** The player's capsule is 1.5 × 2 and **vertical**. Crouching asked for 1.5 × 0.9 — but Unity
+clamps a vertical capsule to a circle of its own width, so the shape stayed **1.5 tall** while the
+offset had already been lowered by 0.55 to keep the feet planted. Net result: the collider sat
+**0.3 units inside the floor**, the solver pushed the player up out of it, and standing again
+dropped them back down.
+
+| | Intended | What actually happened |
+|---|---|---|
+| Crouched shape | 1.5 × 0.9 | 1.5 × **1.5** (clamped) |
+| Bottom of collider | −1.0 | **−1.3** |
+
+The fix is one line, and it is the right shape anyway: the capsule is switched to
+**`CapsuleDirection2D.Horizontal`** while crouched. A horizontal capsule 1.5 wide and 0.9 tall is
+perfectly valid — wide and flat is what a slide *is* — and the bottom lands back on −1.0 exactly.
+
+**2. Dashing through an enemy still cost a heart, because the pass-through ended too early.** The
+guard added in follow-up 7 was keyed on `isDashing`, and `EndDash` restored collisions immediately.
+So a dash that *finished inside* an enemy — easy, since enemies chase toward you — handed the
+player a contact and a heart on the very next physics step. The guard was correct; its window was
+too short.
+
+The pass-through now **outlives the dash**. `UpdateEnemyPhase` ends it only once the player is
+genuinely clear of every enemy (`Physics2D.OverlapCapsule` against the same mask — `excludeLayers`
+filters contacts, not queries, so it can still see them), or once `Enemy Phase Grace` (0.4 s)
+expires. The grace is what stops a player who parks inside an enemy from being permanently
+untouchable. The damage guard is keyed on that phase rather than on the dash.
+
+**Acceptance:** the ground slide stays flat on the floor with no float and no landing drop; dashing
+into, through and out the far side of an enemy costs no health.
+
+#### M3 follow-up 9 — the dash animation sometimes did not play
+
+**Symptom:** occasionally a ground dash moved the player but left the *idle* pose on screen, with no
+obvious pattern to when.
+
+**Cause: transition blend times longer than the dash.** Four transitions in `Player.controller`
+carried Unity's default **0.25 s** blend — `Idle → Run`, `Run → Idle`, `AnyState → Player_Hurt` and
+`Player_Hurt → Idle` — and all of them had `Interruption Source: None`, which means *a transition
+already in progress cannot be interrupted at all*.
+
+The dash lasts **0.16 s. The blend lasts 0.25 s.** So pressing Shift during an `Idle ↔ Run` blend —
+which is running every time the player starts or stops moving, i.e. constantly — blocked the
+`AnyState → Player_Dash` transition outright. By the time the blend finished, `Dash` was already
+false again, so the dash state was never entered. That is the whole of the "sometimes".
+
+**Fix: every transition duration is now 0.** This is not a workaround, it is what this project
+should always have had — **every clip in the game is a sprite swap**, and crossfading a sprite swap
+blends nothing. There is no in-between sprite to interpolate to; Unity simply picks a moment during
+the blend to switch. So the 0.25 s bought no visual smoothing whatsoever, and paid for it with a
+quarter-second window in which the state machine ignored input.
+
+The same two 0.1 s blends were found and cleared on `Enemy.controller` for the same reason.
+
+> Worth remembering for M4: the Animator's defaults are tuned for blended humanoid rigs. For
+> sprite-swap 2D, **Has Exit Time off and Transition Duration 0** is the correct default for every
+> transition, and anything else is a latency bug waiting to happen.
+
+**Acceptance:** the dash pose appears every single time, including when Shift is pressed in the
+instant the player starts or stops running.
+
+#### M3 follow-up 10 — `Art/Player/Slide.png`, and a collider that matches it
+
+**1. The ground slide has its own art now, so it has its own animator state.** The two moves are
+genuinely different pictures, so they are no longer sharing one:
+
+| Move | Parameter | State | Sprite |
+|---|---|---|---|
+| Air dash | `Dash` = `isDashing && !isCrouched` | `Player_Dash` | `Dash.png` |
+| Ground slide | `Slide` = `isCrouched` | `Player_Slide` | `Slide.png` |
+
+They are mutually exclusive by construction — a ground dash crouches, an air dash does not — so no
+ordering problem between the two AnyState transitions. `Slide` is keyed on `isCrouched` rather than
+on the dash, which means the flat pose correctly stays on while shuffling along under a low ceiling
+after the dash itself has finished.
+
+**2. The collider is now taken from the artwork instead of from a scale factor.** `Slide.png` draws
+the frog across the full 32 px width and 14 px tall at the bottom of the frame; at 16 PPU that is
+exactly **2 × 0.875 units**. So the field is no longer a fraction to reason about — it states the
+size outright:
+
+```
+slideColliderSize = (2, 0.875)     // the sprite, in world units
+```
+
+The capsule is anchored by its **bottom** rather than its centre, so the feet stay on the floor
+whichever size is in use — that is the one thing that has to hold regardless of what the art does,
+and it is now the only piece of arithmetic left in the crouch. It also stays a valid *horizontal*
+capsule, since 2 > 0.875.
+
+Note the slide is **wider** than the standing capsule (2 vs 1.5) as well as much shorter. That is
+faithful to the drawing — the frog really does stretch out — and it means the player stops against
+a wall exactly where the sprite touches it.
+
+**Acceptance:** the ground dash plays the slide sprite, the body underneath is the same size and
+shape as the drawing, the feet stay on the floor, and a one-tile gap is still passable.
+
+**Acceptance:** falling off the map kills you almost as soon as you leave the screen; Shift in the
+air dashes once per jump; Shift on the ground slides you under a one-tile gap and you keep shuffling
+until there is room to stand; taking a hit cancels a dash; dashing carries you through an enemy but
+never through scenery.
 
 ### M4 — Level design & build
 - [ ] Layout spec for **Level 1 (teach)**, **Level 2 (test)**, **Level 3 (twist)** — ASCII grid on
@@ -742,6 +1200,108 @@ other than `Platform` were doing the moving.
 5. **Confirm nothing else regressed** — normal jumping height, dive-stomp bounce off an enemy, and
    knockback all touch the same vertical velocity path that this pass rewrote.
 
+### After M3
+Everything below was written as raw YAML with Unity closed, so this is the first real test of it.
+The scripts were compiled against Unity's own assemblies before hand-off and build clean, so any
+problem here will be an *asset* problem, not a compile error.
+
+1. **Open Unity and check the Console.** Five new scripts and five new prefabs were added.
+
+2. **⚠️ Highest-risk item — open `Assets/Prefabs/PauseMenu.prefab`.** It is by far the biggest
+   thing ever hand-written in this project (105 objects, including two uGUI `Slider`s with their
+   full Background / Fill Area / Handle Slide Area sub-trees). It should open showing a dark
+   full-screen panel with a **PAUSED** title, two clock lines, a `ButtonGroup` of Continue /
+   Options / Quit to Menu, and an `OptionsPanel` holding the Music and Sound sliders and a Back
+   button.
+   **If it is broken or looks wrong, delete it and rebuild it in the Editor.** Every lookup is by
+   name, so only the names matter and the layout is yours to arrange:
+
+   ```
+   PauseMenu            <- Canvas + CanvasScaler + GraphicRaycaster + PauseMenu.cs
+     PausePanel         <- full-screen dark Image
+       Title
+       ClockText
+       ButtonGroup      <- empty RectTransform
+         ContinueButton / OptionsButton / QuitButton
+       OptionsPanel     <- empty RectTransform + OptionsPanel.cs
+         MusicLabel / MusicSlider / SfxLabel / SfxSlider / BackButton
+   ```
+   Tell me either way. The intro screen uses the same `OptionsPanel` shape under its Canvas.
+
+3. **Check `Assets/Prefabs/Hud.prefab`** opens with a `Hearts` container, `CoinIcon` +
+   `CoinCounter`, and `AmmoIcon` + `AmmoCounter`. Its `Heart Prefab` field should point at
+   `Heart`. The heart icon reuses the **Cherry** sprite deliberately — cherries are what heal you,
+   so the HUD and the pickup match without needing new art.
+
+4. **Playtest `Level1` and check the new systems:**
+   - **HUD** — three hearts, coin count, ammo count. Take a hit and a heart should disappear;
+     collect a cherry and it should come back.
+   - **Pickup banner** should now *fade out* rather than blink off, and the counter text that used
+     to fight with it is gone.
+   - **Esc** — the game freezes, the panel appears with **Continue / Options / Quit to Menu**.
+     Check the two clocks: *Level time* should stop dead while *Session time* keeps counting.
+   - **Options** — the buttons are replaced by the Music and Sound sliders. Move them, press Back,
+     press Esc to unpause. Reopening the pause menu should show the *buttons* again, not the
+     sliders you left it on. Esc while the sliders are up should back out one step, not unpause.
+   - **Click Continue with the mouse** — you should **not** also throw a shuriken.
+   - **Walk off the very edge of a platform and press jump slightly late** — coyote time should
+     still give you the jump. You should **not** be able to jump twice.
+   - **Fall into a pit** — you should die and the level reload, rather than falling forever.
+   - **Touch the `CubeObstacle` and stay against it** — it should hurt you repeatedly (about once
+     every 1.2 s, the invulnerability window), not just once.
+   - **Walk into the `LevelExit`** (the flag, currently at `x = 24`) — Level2 should load.
+     ⚠️ **It was placed blind and may be floating.** Drag it onto solid ground first.
+
+5. **Test that the save actually persists — this is the M3 acceptance test:**
+   - Reach the exit in Level1, then **quit the game completely** (stop Play mode *and* close and
+     reopen Unity, or make a build).
+   - On the intro screen a **Continue** button should now be there, and take you to Level2.
+     **New Game** should wipe that and start at Level1 again.
+   - Volume set in the pause menu should still be where you left it, and the intro screen's
+     **Options** should show the same values.
+
+6. **The intro screen was rebuilt from scratch** — the eight corner frogs are gone, replaced by
+   one large frog beside the title, with a dark band behind the button column and a version label
+   bottom-right. Check it opens without errors and that **all three buttons respond** (Continue is
+   hidden until there is progress to continue from).
+
+7. **Checkpoints.** Two `Checkpoint` prefab instances were dropped into each level at
+   `x = -14` and `x = 10`, **placed blind** like the LevelExit — move them onto real ground first.
+   Then check:
+   - Walking into one turns it from grey to full colour with a single scale pulse, and refills
+     your hearts.
+   - Take damage, collect a coin or two, then die. You should reappear **at the checkpoint, on
+     full hearts**, with the ammo and coins you had *when you touched it* — the coins collected
+     afterwards are back in the level.
+   - Touch a checkpoint, then **quit the game completely** and press **Continue**. You should
+     resume at that checkpoint with that inventory.
+   - **New Game** must wipe all of it — back to Level1, 3 hearts, 3 shuriken, 0 coins.
+
+8. **Dash and slide (Shift).**
+   - **In the air** — one dash per jump, restored when you land. Check the fading afterimages
+     appear, and that you cannot dash twice without touching the ground.
+   - **On the ground** — you slide, and the character visibly shortens. Build a one-tile-high gap
+     out of tilemap tiles and check you can slide through it.
+   - **In a tunnel longer than one slide** — you should keep shuffling along at half speed while
+     still low, and pop back up the moment there is headroom. You should *not* get stuck, and you
+     should *not* stand up inside the ceiling.
+   - **Take a hit mid-dash** — the dash should stop and the knockback should work normally.
+   - **Dash into an enemy** — you should pass straight through it and take no damage. Dash into a
+     wall or the `CubeObstacle` and you should be stopped as normal.
+   - **⚠️ Check the dash sprite actually appears.** `Player_Dash.anim` and the `Dash` state on
+     `Player.controller` were written as raw YAML. If the player turns invisible or keeps the idle
+     pose while dashing, open `Player.controller` and confirm the `Player_Dash` state's Motion is
+     `Player_Dash`, and that the clip's sprite is `Dash`. Both are one drag to fix.
+
+9. **Fall death** should now trigger almost as soon as you drop out of view, rather than after a
+   long silent fall. It is measured from the level's `CameraBounds`, so it needs no tuning — but a
+   level with no bounds falls back to `Fall Death Height`.
+
+10. **Report feel:** coyote time length (`Coyote Time`, default 0.12 s), whether the HUD is now the
+   right size, whether the checkpoint pulse (`Pulse Scale` 1.4, `Pulse Duration` 0.35) reads well,
+   and whether the intro layout wants moving — the title, frog and menu column are RectTransforms
+   and can be nudged freely in the Editor without touching code.
+
 ---
 
 ## Deferred manual steps
@@ -750,20 +1310,28 @@ Things intentionally left for the user to finish later in development. **These a
 the game is not complete until they are done.**
 
 ### 🔊 Audio clips — deferred by user request
-The audio *system* is built and working (`AudioManager`, volume sliders, saved volume prefs), but
-the individual sound effects are not wired. At every place a sound should play, the code contains a
-commented call marked `// TODO(audio):`, for example:
+The audio *system* is built, wired and running (`AudioManager`, volume sliders, saved volume prefs),
+and **every call site is live** — there is no code left to edit. `AudioManager.PlaySfx` is static
+and ignores a null clip, so the game plays silently until clips are assigned and starts making
+noise the moment they are.
 
-```csharp
-// TODO(audio): AudioManager.Instance.PlaySfx(jumpClip);
-```
+**To finish — Inspector work only:**
+1. Create `Assets/Audio/` and add clips — roughly 8: jump, throw, stomp/kill, hurt, death, pickup,
+   level exit, UI click, plus 1–2 looping music tracks. (Kenney.nl "Impact Sounds" /
+   "Music Jingles", or freesound.org.)
+2. Assign them to the `AudioClip` fields, which are grouped under an **Audio** header on each
+   component:
 
-**To finish:**
-1. Create `Assets/Audio/` and add clips — roughly 7: jump, throw, stomp/kill, hurt, pickup, UI click,
-   and 1–2 looping music tracks. (Kenney.nl "Impact Sounds" / "Music Jingles", or freesound.org.)
-2. Assign each clip to the matching `[SerializeField] private AudioClip` field in the Inspector.
-3. **Uncomment every `// TODO(audio):` line.** Find them all with a project-wide search for
-   `TODO(audio)`.
-4. Playtest and balance volumes.
+   | Component | Fields |
+   |---|---|
+   | `Player` (on `Player.prefab`) | Jump Clip, Stomp Clip, Hurt Clip, Pickup Clip |
+   | `PlayerCombat` (same prefab) | Throw Clip |
+   | `PlayerHealth` (same prefab) | Death Clip |
+   | `Enemy` (on `Enemy.prefab`) | Death Clip |
+   | `LevelExit` (on `LevelExit.prefab`) | Exit Clip |
+   | `AudioManager` (on `AudioManager.prefab`) | Menu Music, Level Music, Ui Click Clip |
 
-> Until step 3 is done, the **Audio** checklist item is not satisfied.
+3. Playtest and balance, using the pause-menu sliders.
+
+> Until step 2 is done, the **Audio** checklist item is not satisfied — the system is proven but
+> nothing is audible.

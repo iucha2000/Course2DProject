@@ -64,7 +64,13 @@ Assets/
 - **Animator controllers**: `<Subject>.controller`; **clips**: `<Subject>_<State>.anim`
   (e.g. `Player_Run.anim`, `Shuriken_Spin.anim`).
 - **Animator parameters**: `PascalCase` — `Run` (Float), `IsGrounded` / `IsFalling` (Bool),
-  `Jump` / `IsHurt` (Trigger). Bools read as questions (`Is…`), Triggers as events.
+  `Jump` / `IsHurt` / `Dash` (Trigger or Bool). Bools read as questions (`Is…`), Triggers as events.
+- ⚠️ **Every animator transition in this project uses Transition Duration 0.** All the clips are
+  sprite swaps, and crossfading a sprite swap blends nothing — there is no in-between sprite, Unity
+  just picks a moment mid-blend to switch. Unity's 0.25 s default therefore buys no smoothing and
+  costs a window in which the state machine **cannot be interrupted** (`Interruption Source: None`).
+  That caused a real bug: the 0.16 s dash was shorter than a 0.25 s `Idle ↔ Run` blend, so pressing
+  Shift while that blend ran silently skipped the dash animation entirely.
 
 ## Coding style
 
@@ -94,8 +100,42 @@ Assets/
   | Approach | Why it fails |
   |---|---|
   | `SetParent` | rider is driven twice per step — parent transform *and* its own gravity — so it sinks in and is pushed back out |
+  | `rb.MovePosition` **on the platform** | it hands the kinematic body a velocity so the solver can sweep it, and the contact passes that velocity to the rider — who keeps it when the platform stops, and pops off the top. Assign `rb.position` instead: a platform that carries riders itself must have no velocity of its own |
   | let the platform push it | the contact solver decides the rider's velocity, which it still has when the platform stops → pops off the top |
   | hand the rider the platform's velocity | gravity is applied *after* `FixedUpdate`, and the platform's velocity can only be measured a step late (FixedUpdate order between scripts is undefined) |
+- **To crouch, resize the collider — do not scale the transform.** Scaling a physics object scales
+  its collider too, but around the transform origin, so the feet lift off the floor and need
+  compensating. Setting `capsule.size` and anchoring the shape by its **bottom** (`offset.y =
+  standingBottom + size.y / 2`) keeps the feet planted for any size, with no compensation and no
+  interference with the sprite.
+- **Size a collider from the artwork, in world units, not as a fraction of another collider.**
+  `Player.slideColliderSize` is `(2, 0.875)` because `Slide.png` is 32 × 14 px at 16 PPU. A scale
+  factor would have to be re-derived by hand every time the art changed; the measurement does not.
+- ⚠️ **A `CapsuleCollider2D` cannot be shorter than it is wide along its own direction.** Unity
+  silently clamps the shape to a circle of the other dimension. Shortening the player's 1.5-wide
+  *vertical* capsule to 0.9 left it 1.5 tall with an already-lowered offset, burying it 0.3 units
+  in the floor — the player floated during the slide and dropped when it ended. **Switch
+  `capsule.direction` to `Horizontal` when making it flat**, which is the correct shape anyway.
+- **A "can I stand up again?" test must not include the floor.** Test only the band between the
+  crouched head and the standing head. An overlap test using the full standing capsule finds the
+  ground the player is stood on and reports "no room" forever.
+- **To pass through one layer temporarily, use `Rigidbody2D.excludeLayers`**, not
+  `Physics2D.IgnoreLayerCollision`. It is per-body rather than global, so it cannot leak into other
+  objects, and it disappears with the object if it is destroyed mid-effect. The player's dash uses
+  it to pass through `Enemy` — and *only* `Enemy`, since passing through scenery would let the
+  player leave the level.
+  ⚠️ **State the gameplay rule in code as well, and give it the right window.** A contact already
+  in progress when the exclusion is switched on can still be delivered for a step, so
+  `Player.TryTakeContactDamage` also ignores enemies outright. Key that guard on the *pass-through*
+  (`isPhasingEnemies`), not on the dash — a dash that ends while still inside an enemy would
+  otherwise restore contacts and hand over a heart on the next step. End the pass-through when the
+  player is actually clear (an overlap query still sees them, since `excludeLayers` filters
+  contacts, not queries), with a short grace cap so stopping inside an enemy cannot make the player
+  permanently safe.
+- **Purely visual effects belong in `Update`, not `FixedUpdate`.** The physics clock is a fixed
+  0.02 s, so anything spawned there is capped at 50/second regardless of framerate — which is what
+  made the dash trail look like a row of clones. `Update` also reads the *interpolated* transform,
+  which is where the sprite is actually drawn.
 - Physics queries belong in **`FixedUpdate`**, not `Update`. Unity runs all of a frame's
   `FixedUpdate`s *before* that frame's `Update`, so a ground check done in `Update` is already one
   frame stale by the time the next physics step reads it.
@@ -108,6 +148,34 @@ Assets/
   shuriken in M2, and it froze every enemy in M2.5. `m_ExcludeLayers` on the marker does **not**
   help — that setting governs collisions, not queries. Solid scenery belongs on `Ground`; marker
   volumes belong on `Ignore Raycast` (layer 2), which is why `CameraBounds` now sits there.
+- **UI lives in prefabs that carry their own `Canvas`.** `Hud.prefab` and `PauseMenu.prefab` each
+  have a Canvas + CanvasScaler at the root, so they drop into a scene as ordinary root objects.
+  Two reasons: a canvas is rebuilt as a unit, so the pause menu changing cannot force the HUD to
+  rebuild; and a root-level prefab instance is far less fragile to hand-write than re-parenting
+  into an existing canvas (which needs "stripped" transform objects). Sorting order: the level's
+  own canvas 0, HUD 1, pause menu 2.
+- **UI scripts resolve their children by name** (`transform.Find`, or a `GetComponentsInChildren`
+  scan matching `name`). The script and its prefab ship together, so a name is as reliable as a
+  dragged reference and cannot be silently unset in one scene out of three.
+- **Menus are laid out by layout groups, not by `anchoredPosition`.** A button column is
+  `Image` + `VerticalLayoutGroup` + `ContentSizeFitter`, so hiding one entry with `SetActive(false)`
+  re-flows the rest and shrinks the panel instead of leaving a hole. Keep `Child Control Width` on
+  (width comes from the column) and `Child Control Height` off (each button's height stays one
+  editable number, with no `LayoutElement` needed).
+- **Single-line labels have text wrapping off.** A button label in a rect that is momentarily zero
+  wide will otherwise wrap to one letter per line and render vertically.
+- ⚠️ **Never activate a UI object and deactivate it again in the same frame.** The queued layout
+  rebuild is discarded and TextMeshPro can keep stale zero-width geometry. A panel that must start
+  hidden should **ship inactive** and initialise lazily on first use — an inactive GameObject never
+  receives `Awake`, so wiring it there would never run. This caused a real bug: the pause menu's
+  labels rendered vertically.
+- **The HUD polls; nothing pushes to it.** Everything it shows is a public read-only property on
+  the object that owns it, so no gameplay script needs to know a HUD exists.
+- **The checkpoint is the save.** There is one record in `SaveSystem` (level, position, ammo,
+  coins) and it answers all three questions the game asks — where a death respawns, what carries
+  into the next level, and where `Continue` resumes. Read back in exactly one place,
+  `Player.RestoreFromSave` in `Start`, so those three cannot drift apart. Hearts are deliberately
+  *not* stored: touching a checkpoint heals to full, so the answer is always "max".
 - No empty `Start()` / `Update()` stubs — delete them.
 - Comment *why*, not *what*. This is an exam project: a short comment explaining a non-obvious
   Unity behaviour is worth more than a line-by-line narration.
@@ -116,6 +184,19 @@ Assets/
 
 **Tags:** `Player`, `Enemy`, `Item`, `Obstacle`, `Platform`
 Use `CompareTag("X")`, never `gameObject.tag == "X"` (the latter allocates).
+
+The two damage sources are deliberately different shapes, and the difference is trigger vs solid:
+
+| | `Saw` | `CubeObstacle` |
+|---|---|---|
+| Collider | trigger, layer `Hazard` | solid, layer `Ground` |
+| Hurts via | `Hazard.cs` — `OnTriggerEnter2D` + `OnTriggerStay2D` | the `Obstacle` tag, read by `Player.OnCollisionEnter2D` + `OnCollisionStay2D` |
+| You can | walk through it | stand on it, and enemies hop it |
+| Moves? | yes, via `PatrolMover` | no — it is the static one |
+
+Both need the **Stay** callback as well as Enter: after being knocked back, a player still touching
+the thing when invulnerability ends never raises a second Enter, so they would sit inside it taking
+no damage.
 
 **Layers** (`ProjectSettings/TagManager.asset`):
 
@@ -133,7 +214,18 @@ Use `CompareTag("X")`, never `gameObject.tag == "X"` (the latter allocates).
 `Enemy ✗ Pickup` · `Hazard ✗ Pickup` · `Pickup ✗ Pickup` (drops don't shove each other).
 
 **Sorting layers**, back to front: `Background` → `Default` → `Foreground`.
-Gameplay sprites stay on `Default`.
+Gameplay sprites stay on `Default` and separate by **sorting order** within it:
+
+| Order | What |
+|---|---|
+| 0 | tilemap, platforms, `CubeObstacle`, `Checkpoint`, `LevelExit` — the world and its props |
+| 5 | pickups (`Coin`, `Cherry`, `AmmoPickup`) |
+| 10 | `Enemy`, `Saw` |
+| 20 | `Player` — always in front of anything it walks past |
+| 25 | `Shuriken` |
+
+Leaving everything at 0 lets Unity's fallback ordering decide, which is unstable when sprites
+overlap — that is what made the checkpoint flag cut through the player.
 
 ## Working with scene and prefab YAML
 
