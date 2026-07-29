@@ -1302,6 +1302,40 @@ problem here will be an *asset* problem, not a compile error.
    and whether the intro layout wants moving — the title, frog and menu column are RectTransforms
    and can be nudged freely in the Editor without touching code.
 
+### After M4 — Level 1 built
+`Level1.unity` was rebuilt from `Design/Level1.txt`: the whole tilemap, every gameplay prefab, and
+the `CameraBounds` polygon. Written as raw YAML with Unity closed, so this is the first real test.
+
+1. **Open Unity and check the Console.** The scene now has 1056 tiles and 56 prefab instances.
+2. **⚠️ Highest-risk item — check the camera still follows the player.** Deleting the old Player
+   instance orphaned the *stripped* Transform that `CinemachineCamera → Tracking Target` points at;
+   it was repointed by hand at the new instance. **If the camera does not follow, drag the `Player`
+   from the Hierarchy onto `CinemachineCamera → Tracking Target`.**
+3. **Check `CameraBounds`** is a rectangle from (0, −7) to (200, 10) and that `CinemachineConfiner2D
+   → Bounding Shape 2D` still points at it. This also sets the fall-death line (−7 − margin).
+4. **Playtest the teaching order** — each of these is a designed beat, in this order:
+   | x | What should happen |
+   |---|---|
+   | 22 | fall in the shallow basin and walk straight back out — no death |
+   | 34 | first real pit, 5 tiles |
+   | 44 | dive-stomp the Enemy (hold Down in the air), it drops ammo |
+   | 48 | the CubeObstacle hurts you, and the Enemy hops it |
+   | 50–66 | jump to the ledge, **air-dash 10 tiles** to the coins. Falling costs nothing |
+   | 79 | SpikedEnemy across a pit — shuriken only |
+   | 86–91 | **slide tunnel**, 6 tiles: dash covers 3.2, so you must shuffle the rest |
+   | 101 | Checkpoint 1 |
+   | 105–114 | **10-tile chasm — jump+dash is mandatory** (jump alone reaches 8.56) |
+   | 125–138 | ride the Platform across, timing the rising Saw |
+   | 145–157 | terraces; the y=6 coin stash is an optional detour |
+   | 169 | hardest pure jump, 6 tiles |
+   | 180–183 | second slide tunnel, under saws |
+   | 195 | LevelExit → Level2 |
+5. **Report feel:** whether the 10-tile chasm is fair, whether the 6-tile tunnel shuffle drags, and
+   whether the enemy arena (x 39–68) is too much flat walking.
+
+> Not yet done for Level 1: decorative tiles (vines/chains on a second non-collidable Tilemap) and
+> the `Transform.Translate` scrolling background. Level 2 and Level 3 are still Level1 copies.
+
 ---
 
 ## Deferred manual steps
