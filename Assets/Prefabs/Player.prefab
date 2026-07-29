@@ -194,7 +194,6 @@ MonoBehaviour:
     m_Bits: 256
   enemyPhaseGrace: 0.4
   slideColliderSize: {x: 2, y: 0.875}
-  crouchSpeedScale: 0.5
   diveSpeed: 20
   stompBounceForce: 11
   stompNormalThreshold: 0.5

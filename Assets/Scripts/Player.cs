@@ -54,8 +54,6 @@ public class Player : MonoBehaviour
     [Tooltip("Collider size while sliding, in world units. Taken straight from the Slide " +
              "artwork: 32 x 14 pixels at 16 PPU is 2 x 0.875, so the body matches what is drawn.")]
     [SerializeField] private Vector2 slideColliderSize = new Vector2(2f, 0.875f);
-    [Tooltip("Walking speed while still stuck crouched under a low ceiling.")]
-    [SerializeField] private float crouchSpeedScale = 0.5f;
 
     [Header("Dive and stomp")]
     [Tooltip("Downward speed when diving. Diving is the only way to kill an enemy by landing on it.")]
@@ -594,14 +592,17 @@ public class Player : MonoBehaviour
         // moves us by position in its own FixedUpdate, which leaves our velocity - and with it
         // our gravity, jumping and knockback - completely untouched. See Platform for why.
         //
-        // Still crouched means still under a ceiling, so the player shuffles rather than runs.
-        float speed = isCrouched ? moveSpeed * crouchSpeedScale : moveSpeed;
+        // Still crouched means still under a ceiling, and the slide keeps its *slide* speed
+        // rather than dropping to a walk. The sprite is a stretched-out slide, so anything
+        // slower reads as the animation being stuck rather than as a deliberate crouch - and it
+        // keeps a tunnel quick to cross, which is the whole point of sliding into one. The dash
+        // proper has already ended, so gravity is back on and the player stays on the floor;
+        // only the horizontal speed is carried over.
+        float speed = isCrouched ? dashSpeed : moveSpeed;
 
-        // A slide that runs out under a ceiling must not leave the player parked in the slide
-        // pose with nothing happening - stationary in a stretched-out sliding sprite reads as a
-        // bug, not as a crouch. With no input they keep drifting the way the slide was already
-        // going, so a tunnel always carries them out of itself and can never trap them. Input
-        // still steers and still reverses, so nothing is taken away from the player.
+        // With no input they keep going the way the slide was already going, so a tunnel always
+        // carries them out of itself and can never trap them. Input still steers and still
+        // reverses, so nothing is taken away from the player.
         float direction = horizontalInput;
         if (isCrouched && Mathf.Approximately(direction, 0f))
         {

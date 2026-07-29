@@ -1331,6 +1331,40 @@ stubs, an overhang, floating rocks and two tunnel roofs. **Every gap width is un
 those are the measured numbers the mechanics depend on; only the silhouette around them changed.
 1142 tiles, up from 1056.
 
+#### M4 follow-up 2 — slide speed, grid alignment, and props
+
+**1. The slide keeps its own speed under a ceiling.** Follow-up 1 made the player keep moving, but
+at `crouchSpeedScale` (half of walking), which looked wrong: the sprite is a stretched-out *slide*,
+so a slow crawl reads as the animation being stuck. Crouched movement is now `dashSpeed` — the
+slide simply keeps its speed until there is headroom. The dash proper has already ended, so gravity
+is back on and the player stays on the floor; only the horizontal speed carries over. That deleted
+`crouchSpeedScale` entirely, from the script and from `Player.prefab`.
+
+**2. Everything was half a tile to the left.** A tile at cell `x` spans world `x..x+1`, so the
+centre of the column is **x+0.5** — but the placements were authored at whole numbers, which is the
+tile's *left edge*. The build script now adds the half-tile itself, so the design file stays in
+readable whole cells and objects land centred. Pickup `y` is `surface + 0.5` for the same reason:
+a coin's 0.5 radius then fills its cell exactly.
+
+> Together with follow-up 1's tilemap offset, that is two separate coordinate mistakes from the
+> same cause — assuming a cell index *is* a world position. It is neither centred nor unshifted.
+
+**3. `CubeObstacle` is gone from Level 1, replaced by real props.** Its sprite still points into
+`Library/PackageCache/` *(defect #10)*, which is why it drew as a black box. Rather than repoint art
+nothing needed, the level now uses more of what already works:
+
+| Prop | Was | Now | Doing what |
+|---|---|---|---|
+| `Platform` | 1 | **3** | the ferry, plus a **static stepping stone** (offset zero) and a **vertical elevator** up to a new floating rock |
+| `Saw` | 3 | **5** | one sweeps the arena approach, one patrols above the plateau |
+| `Enemy` | 3 | **5** | populated the tunnel approach and the final gauntlet |
+
+The "enemies hop obstacles" lesson the cube used to carry now comes from the terrain's pillar stubs
+at x=30, 57 and 186, which are exactly the 1–1.5 units `Enemy.maxJumpableHeight` allows.
+
+> `CubeObstacle.prefab` still exists and is still referenced by `Level2`/`Level3`, so defect #10 is
+> still owed — it just no longer affects Level 1.
+
 ### After M4 — Level 1 built
 `Level1.unity` was rebuilt from `Design/Level1.txt`: the whole tilemap, every gameplay prefab, and
 the `CameraBounds` polygon. Written as raw YAML with Unity closed, so this is the first real test.
