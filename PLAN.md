@@ -1365,6 +1365,28 @@ at x=30, 57 and 186, which are exactly the 1–1.5 units `Enemy.maxJumpableHeigh
 > `CubeObstacle.prefab` still exists and is still referenced by `Level2`/`Level3`, so defect #10 is
 > still owed — it just no longer affects Level 1.
 
+#### M4 follow-up 3 — platform positions
+
+Three faults, all found by sweeping each platform's **whole travel** against the terrain rather
+than checking where it starts. `Platform.prefab` is `localScale 5.03 x 0.56` on a 1 × 1 box, so the
+body is **5.03 units wide** — much larger than the cell it is authored in, which is what made
+eyeballing it fail.
+
+| Platform | Fault | Fix |
+|---|---|---|
+| Elevator | at rest its whole body sat **inside** the shelf (cells 120,0 … 124,0) | start at `y = 1.4` — the half-height is 0.28, so it needs that much clearance over a surface of 1 |
+| Elevator | at the top the floating rock was **directly overhead**, so a rider's head was inside it | rock moved to x 116–119; the platform now rises *beside* it and you jump across |
+| Ferry | at rest it **clipped the left lip** at cell (124,0) | travel 9 → **8**. 5.03 wide + 9 exactly filled the 14-wide chasm, so both ends kissed the walls; 8 leaves ~0.5 of clearance at each end |
+
+Reachability re-derived afterwards, not assumed: boarding the elevator is a 0.68 step; the rock is
+1.32 up and 3.25 across from the top of its travel (inside the 3.67 / 8.56 jump budget); and the
+rock is 7.0 above the ground and 6.0 above the shelf, so it stays **elevator-only** as intended.
+The ferry is a 0.49 hop on and a 0.49 hop off, with its deck 0.02 below the lip it launches from.
+
+> The general lesson: a moving platform has to be checked at *every* point of its travel, and
+> against the rider's headroom as well as its own body. A start position that looks right says
+> nothing about the other end.
+
 ### After M4 — Level 1 built
 `Level1.unity` was rebuilt from `Design/Level1.txt`: the whole tilemap, every gameplay prefab, and
 the `CameraBounds` polygon. Written as raw YAML with Unity closed, so this is the first real test.
