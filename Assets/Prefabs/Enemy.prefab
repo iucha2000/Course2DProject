@@ -86,7 +86,7 @@ SpriteRenderer:
   m_SortingOrder: 10
   m_MaskInteraction: 0
   m_Sprite: {fileID: -6367560908665664636, guid: 6e2bc1aa91b0d43478110fc2065d3cf9, type: 3}
-  m_Color: {r: 1, g: 0.35, b: 0.35, a: 1}
+  m_Color: {r: 1, g: 0, b: 0, a: 1}
   m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0
@@ -176,7 +176,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage:
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -191,7 +191,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6b2f89f9e963cc244abaf1affff51e48, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   moveSpeed: 4
   chaseRange: 5
@@ -213,4 +213,4 @@ MonoBehaviour:
   spikesUpDuration: 3
   spikesDownDuration: 1
   vulnerableColor: {r: 1, g: 0.9, b: 0.35, a: 1}
-  deathClip: {fileID: 0}
+  deathClip: {fileID: 8300000, guid: 53c041c6227a5fb4380793fd287b8769, type: 3}

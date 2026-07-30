@@ -198,10 +198,10 @@ MonoBehaviour:
   stompBounceForce: 11
   stompNormalThreshold: 0.5
   jumpClip: {fileID: 0}
-  stompClip: {fileID: 0}
-  hurtClip: {fileID: 0}
-  pickupClip: {fileID: 0}
-  dashClip: {fileID: 0}
+  stompClip: {fileID: 8300000, guid: 98bbf9009ad6e724e8e1a85e1c0004da, type: 3}
+  hurtClip: {fileID: 8300000, guid: c574896d60474e4498a7294f7add1d4a, type: 3}
+  pickupClip: {fileID: 8300000, guid: af7b8a99de8c56e4387f8e27b9445042, type: 3}
+  dashClip: {fileID: 8300000, guid: 4f07581854e8df14c89246f68d884e45, type: 3}
   coinItemName: Coin
 --- !u!95 &-4686862778587625284
 Animator:
@@ -235,14 +235,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 934fe737d8654466aa92f68126ad302c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
   shurikenPrefab: {fileID: 3812445907116423807, guid: 135df5ccfa1140a192c057ce78824f8d, type: 3}
   throwCooldown: 0.35
   spawnOffset: 0.7
   startingAmmo: 3
   maxAmmo: 9
-  throwClip: {fileID: 0}
+  throwClip: {fileID: 8300000, guid: c4e20ec95326c7247863962995bcc699, type: 3}
 --- !u!114 &6612093847561029384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -253,9 +253,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4c4d80ca4fe34b279553c3fccb9c0b73, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHearts: 3
   fallDeathMargin: 2
   fallDeathHeight: -20
-  deathClip: {fileID: 0}
+  deathClip: {fileID: 8300000, guid: f8874ba1db9606f48a302a6ac6089b0a, type: 3}

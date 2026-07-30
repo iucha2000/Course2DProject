@@ -42,8 +42,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ce5cf9e586f4071b0979110fbad437c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   menuMusic: {fileID: 0}
-  levelMusic: {fileID: 0}
+  levelMusic: {fileID: 8300000, guid: 81b2fa4a7d6faa04589986fec148047c, type: 3}
   uiClickClip: {fileID: 0}

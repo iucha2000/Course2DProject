@@ -1631,6 +1631,39 @@ snapping, so its leading edge would have arrived exactly at x=0.
    fast reads as the world moving rather than as distance — and on Level 1 what matters is the
    *ratio* between the two layers, not either number on its own.
 
+### After the main-menu Quit button
+
+The intro screen is now **Continue / New Game / Options / Quit**. `QuitButton` was written into
+`IntroScene.unity` as a fourth child of `MenuGroup`, identical to the other three (86 px tall, same
+green, same TMP label settings), and `IntroCanvasHandler` gained `OnQuit`.
+
+**Why the button needed no layout work.** `MenuGroup` is a `VerticalLayoutGroup` +
+`ContentSizeFitter`, so a fourth child re-flows the column and grows the band by itself — the same
+property that makes hiding `Continue` close the gap. The column is 496 px tall now (was 386) and
+centred at y = −110, so it spans y −358…138 against a subtitle whose bottom edge is at 175. Nothing
+had to move.
+
+**Why `OnQuit` has a `#if UNITY_EDITOR` branch.** `Application.Quit()` closes a built player and
+does **nothing at all** inside the Editor, so testing this button from Play mode would make it look
+broken. Stopping Play mode is the Editor's equivalent of quitting, so that is what it does there.
+`UnityEditor` is referenced by its full name *inside* the `#if` rather than with a `using` at the
+top of the file — a `using` would survive into a build, where the namespace does not exist, and fail
+to compile.
+
+> The pause menu's `QuitButton` still means **quit to menu**, not quit the application. Two buttons,
+> same name, different hierarchies — each script looks its own up by name within its own subtree, so
+> they cannot collide.
+
+**Playtest checklist**
+1. **Console first**, then check the intro screen shows four buttons with even spacing and no
+   overlap with the subtitle above them.
+2. **Press Quit in the Editor** — Play mode should stop. That is the correct behaviour, not a
+   failure; the real quit only happens in a build.
+3. **Make a build and press Quit there** — the window should close.
+4. **Open Options and press Back** — all four buttons should come back, Quit included.
+5. With no save present, the column should show **three** buttons (Continue hidden) and still be
+   centred, not top-heavy.
+
 ---
 
 ## Deferred manual steps
@@ -1645,22 +1678,51 @@ and ignores a null clip, so the game plays silently until clips are assigned and
 noise the moment they are.
 
 **To finish — Inspector work only:**
-1. Create `Assets/Audio/` and add clips — roughly 8: jump, throw, stomp/kill, hurt, death, pickup,
-   level exit, UI click, plus 1–2 looping music tracks. (Kenney.nl "Impact Sounds" /
-   "Music Jingles", or freesound.org.)
-2. Assign them to the `AudioClip` fields, which are grouped under an **Audio** header on each
-   component:
 
-   | Component | Fields |
-   |---|---|
-   | `Player` (on `Player.prefab`) | Jump Clip, Stomp Clip, Hurt Clip, Pickup Clip |
-   | `PlayerCombat` (same prefab) | Throw Clip |
-   | `PlayerHealth` (same prefab) | Death Clip |
-   | `Enemy` (on `Enemy.prefab`) | Death Clip |
-   | `LevelExit` (on `LevelExit.prefab`) | Exit Clip |
-   | `AudioManager` (on `AudioManager.prefab`) | Menu Music, Level Music, Ui Click Clip |
+**1. Create `Assets/Audio/Music/` and `Assets/Audio/Sfx/`.** There are **twelve** fields in total —
+two music loops and ten sound effects. Every one is under an **Audio** header on its component:
 
-3. Playtest and balance, using the pause-menu sliders.
+| # | Component (prefab) | Field | Fires when | Character | Length |
+|---|---|---|---|---|---|
+| 1 | `AudioManager` (`AudioManager`) | Ui Click Clip | **every** button, plus pause open *and* close | dry click — the most-heard sound in the game, so it must not grate | 50–100 ms |
+| 2 | `Player` (`Player`) | Jump Clip | every jump | soft hop; fires constantly, keep it light | ~150 ms |
+| 3 | `Player` | Dash Clip | Shift — air dash *and* ground slide | airy whoosh | ~200 ms |
+| 4 | `Player` | Stomp Clip | dive-stomp kills an enemy | meaty impact — this is the reward sound | ~200 ms |
+| 5 | `Player` | Hurt Clip | losing a heart | short pained/negative | ~300 ms |
+| 6 | `Player` | Pickup Clip | coin, cherry **and** ammo — one clip covers all three | bright and cheap | ~150 ms |
+| 7 | `PlayerCombat` (`Player`) | Throw Clip | shuriken thrown | swish | ~150 ms |
+| 8 | `PlayerHealth` (`Player`) | Death Clip | all hearts gone | descending failure sting | ~800 ms |
+| 9 | `Enemy` (`Enemy`) | Death Clip | enemy killed, by stomp or shuriken | crunch — must be distinct from #4 | ~250 ms |
+| 10 | `Checkpoint` (`Checkpoint`) | Claim Clip | touching a checkpoint | warm rising chime, "you are safe" | ~600 ms |
+| 11 | `LevelExit` (`LevelExit`) | Exit Clip | reaching the flag | short triumphant jingle | 1–1.5 s |
+| 12 | `AudioManager` | Menu Music / Level Music | intro screen / all three levels | calm vs upbeat, both looping | 1–3 min |
 
-> Until step 2 is done, the **Audio** checklist item is not satisfied — the system is proven but
-> nothing is audible.
+> #8 and #11 both fire immediately before a scene load, and `sfxSource` lives on the
+> `DontDestroyOnLoad` manager — so both **keep playing across the load** and can be full length
+> without being cut off.
+
+**2. Where to get them.**
+- **SFX — [kenney.nl](https://kenney.nl/assets) (Audio filter).** **CC0**, so no attribution and
+  nothing to justify. *Interface Sounds* → #1; *Impact Sounds* → #4, #5, #9; *Digital Audio* → #6;
+  *RPG Audio* → #3, #7; *Music Jingles* → #8, #10, #11.
+- **SFX alternative — [jsfxr](https://sfxr.me), Bfxr or ChipTone.** Browser generators for retro
+  8-bit sounds. Better suited to 16 PPU pixel art than recorded samples, about 10 minutes for the
+  whole set, and the licence question disappears because the clips are yours.
+- **Music — [Pixabay](https://pixabay.com/music/) (no attribution), [OpenGameArt](https://opengameart.org)
+  filtered to **CC0**, or [FreePD](https://freepd.com).** Kenney has jingles but no long loops.
+- ⚠️ **freesound.org** is mixed-licence — filter to CC0 or you owe attribution.
+  **incompetech.com** is CC-BY, which *requires* a credit line.
+
+**3. Import settings.** These are not cosmetic: music left on Decompress On Load adds seconds to
+every level load, and SFX left on Streaming arrive late.
+
+| | SFX | Music |
+|---|---|---|
+| Load Type | **Decompress On Load** | **Streaming** |
+| Compression Format | **ADPCM** (or PCM) | **Vorbis**, quality ~70% |
+| Force To Mono | **on** | on — it is 2D audio either way |
+
+**4. Playtest and balance** with the pause-menu sliders.
+
+> Until the fields are filled, the **Audio** checklist item is not satisfied — the system is proven
+> but nothing is audible.

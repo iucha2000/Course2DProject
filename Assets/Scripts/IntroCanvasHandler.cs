@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// The title screen: New Game, Continue and Options.
+/// The title screen: New Game, Continue, Options and Quit.
 ///
 /// <para><b>Continue</b> is only offered once there is something to continue from, which is the
 /// visible proof that the save survived the application quitting.</para>
@@ -13,6 +13,7 @@ public class IntroCanvasHandler : MonoBehaviour
     private Button newGameButton;
     private Button continueButton;
     private Button optionsButton;
+    private Button quitButton;
 
     // The whole button column, hidden as a unit while the options sliders are showing.
     private GameObject menuGroup;
@@ -23,6 +24,7 @@ public class IntroCanvasHandler : MonoBehaviour
         newGameButton = Find<Button>("NewGameButton");
         continueButton = Find<Button>("ContinueButton");
         optionsButton = Find<Button>("OptionsButton");
+        quitButton = Find<Button>("QuitButton");
 
         menuGroup = Find<Transform>("MenuGroup").gameObject;
         optionsPanel = GetComponentInChildren<OptionsPanel>(true);
@@ -38,6 +40,7 @@ public class IntroCanvasHandler : MonoBehaviour
         newGameButton.onClick.AddListener(OnNewGame);
         continueButton.onClick.AddListener(OnContinue);
         optionsButton.onClick.AddListener(OnOptions);
+        quitButton.onClick.AddListener(OnQuit);
     }
 
     private void OnNewGame()
@@ -60,6 +63,24 @@ public class IntroCanvasHandler : MonoBehaviour
     }
 
     private void OnOptions() => optionsPanel.Open(menuGroup);
+
+    private void OnQuit()
+    {
+        AudioManager.PlayUiClick();
+
+        // Application.Quit closes the built player, and does nothing at all inside the Editor -
+        // so testing this button from Play mode would look like it was broken. Stopping Play mode
+        // is the Editor's equivalent of quitting, so that is what it does there instead.
+        //
+        // UnityEditor only exists in the Editor, so it is referenced by its full name inside the
+        // #if rather than with a using directive - a using at the top of the file would fail to
+        // compile in a build, where the block below is stripped but the directive would remain.
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
 
     private T Find<T>(string childName) where T : Component
     {
